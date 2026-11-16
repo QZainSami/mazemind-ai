@@ -578,7 +578,16 @@ class MazeDesktopApp:
 
 
 def launch_gui():
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError as e:
+        print("\n[MazeMind AI Desktop GUI Error]")
+        print("Could not initialize graphical display (Tkinter TclError):", e)
+        print("Note: On Linux, ensure a graphical environment ($DISPLAY) is active.")
+        print("If on Ubuntu/Debian, install Tkinter via: sudo apt install python3-tk")
+        print("Alternatively, launch the web GUI: uv run streamlit run app.py\n")
+        sys.exit(1)
+
     app = MazeDesktopApp(root)
     root.mainloop()
 

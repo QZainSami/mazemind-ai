@@ -9,6 +9,8 @@ Builds Matplotlib figures for:
 """
 
 from typing import Any, Dict, List, Optional, Tuple
+import matplotlib
+matplotlib.use("Agg")  # Non-interactive backend safe for Linux servers, Docker & Streamlit
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
