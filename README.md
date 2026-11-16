@@ -193,7 +193,7 @@ To deploy this project online with zero configuration:
    git push -u origin main
    ```
 2. Navigate to [share.streamlit.io](https://share.streamlit.io).
-3. Connect your GitHub account and select `QZainSami/mazemind-ai`.
+3. Connect your GitHub account and select `<user>/mazemind-ai`.
 4. Set **Main file path** to: `app.py`.
 5. Click **Deploy!** — Streamlit Cloud detects `requirements.txt` and starts your app in seconds.
 
