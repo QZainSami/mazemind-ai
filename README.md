@@ -1,7 +1,5 @@
 # MazeMind AI — Intelligent Puzzle Solver & Search Algorithm Visualizer
 
-[![Course: CSL-325](https://img.shields.io/badge/Course-CSL--325%20AI%20Lab-blue.svg)](https://github.com/QZainSami/mazemind-ai)
-[![Semester: Fall 2026](https://img.shields.io/badge/Semester-Fall%202026%20%7C%20BS%20%28CS%29%205--B-purple.svg)](https://github.com/QZainSami/mazemind-ai)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-green.svg)](https://python.org)
 [![Package Manager: uv](https://img.shields.io/badge/Environment-uv-indigo.svg)](https://github.com/astral-sh/uv)
 [![Theme: Dracula](https://img.shields.io/badge/Theme-Dracula%20Spec-BD93F9.svg?logo=dracula&logoColor=white)](https://draculatheme.com/spec)
@@ -11,123 +9,73 @@
 
 ---
 
-## 1. Project Overview & Team Profile
+## 1. Project Overview
 
-* **Course:** CSL-325 Artificial Intelligence Lab (Fall 2026)
-* **Class:** BS (CS) 5 - B
-* **Course Instructor:** Sir Shahid
+**MazeMind AI** is an interactive artificial intelligence platform designed to solve, animate, and compare classical state-space search algorithms across two benchmark problem domains: **2D Grid Mazes** and the **8-Puzzle Sliding Tiles**.
 
-### Team Members & Project Roles
-| S# | Student Name | Registration No. | Email | Project Contributions |
-|:---:|:---|:---:|:---|:---|
-| **1** | **Samiullah Qureshi** | `02-134242-111` | qsamiullah90@gmail.com | System architecture, OOP design, informed search algorithms (Greedy Best-First, A*), and Streamlit Cloud deployment. |
-| **2** | **Muhammad Musavir Waseem** | `02-134242-008` | musavirrizvi349@gmail.com | Uninformed search algorithms (BFS, DFS), 8-puzzle state-space logic and solvability validation, and interactive grid UI. |
-| **3** | **Farman Ali** | `02-134241-015` | farmanalichhajro@gmail.com | Search step visualization, performance comparison tables/charts, unit testing, and project documentation. |
+Built entirely from scratch in pure Python using modular object-oriented design, the system relies on zero external AI APIs or black-box packages. It is delivered in two complementary forms:
+* 🌐 **Interactive Web Application (`app.py`):** Built with Streamlit for cloud deployment on Streamlit Community Cloud.
+* 🖥️ **Native Desktop Canvas GUI (`gui_app.py`):** High-performance Tkinter Canvas providing smooth, 60 FPS local step-by-step animations.
+
+Both applications share the exact same underlying environment models, autonomous search agents, and visual design.
 
 ---
 
-## 2. Executive Summary of Project Proposal
+## 2. Key Capabilities & Highlights
 
-**MazeMind AI** is a purely software-based artificial intelligence application designed to solve and analyze grid-based mazes and 8-puzzle problems. Built in Python using object-oriented programming and deployed as both an interactive web application on **Streamlit Community Cloud** and a high-performance **native desktop Canvas GUI**, the system implements uninformed search algorithms (**Breadth-First Search** and **Depth-First Search**) and informed heuristic search algorithms (**Greedy Best-First Search** and **A\* Search**) completely from scratch without relying on pre-trained models or external APIs.
-
-Users can interactively design custom maze layouts, adjust obstacle density, or generate randomized 8-puzzle boards, and observe how each search algorithm explores states step-by-step. The application visually compares explored nodes, frontier growth, path length, and execution time to demonstrate the behavior and trade-offs of classical AI search techniques.
-
----
-
-## 3. Scope & Objectives
-
-### Scope (Included vs. Excluded)
-* **Included:**
-  * Object-oriented 2D grid maze and 8-puzzle environments.
-  * Custom Python implementations of BFS, DFS, Greedy Best-First Search, and A* Search (supporting both **Manhattan** and **Euclidean** heuristics).
-  * Interactive grid editor and 8-puzzle randomizer with mathematical solvability checking (Inversion Parity Theorem).
-  * Step-by-step 1-by-1 sliding tile animation for 8-puzzle and path discovery for 2D mazes with full playback controls (Play, Pause, Reset, Step, Speed).
-  * Dark mode design adhering to the official **Dracula Theme Specification**.
-  * Side-by-side performance comparison tables and comparative bar charts.
-  * Dual delivery: **Streamlit Web Application** (`app.py`) for cloud hosting and **Native Desktop GUI** (`gui_app.py`) for 60 FPS local canvas animation.
-* **Excluded:**
-  * Physical hardware devices or sensors.
-  * 3D game engines.
-  * Pre-trained machine learning models or external third-party AI APIs.
-
-### Project Objectives
-1. Build a modular, object-oriented Python architecture modeling 2D grid mazes, 8-puzzle boards, and autonomous search agents.
-2. Implement Breadth-First Search (BFS), Depth-First Search (DFS), Greedy Best-First Search, and A* Search from scratch.
-3. Support admissible heuristics (Manhattan distance and Euclidean distance) for informed search and solvability validation for 8-puzzle configurations.
-4. Animate step-by-step 1-by-1 tile movements, node exploration, frontier states, and final solution paths inside an interactive user interface.
-5. Provide comprehensive playback controls (Play, Pause, Reset, Step, Slower, Faster, Speed sliders).
-6. Compare algorithm performance across path cost, total nodes expanded, max frontier size, and execution time (ms).
-7. Deploy the complete software application publicly on Streamlit Community Cloud.
+* **Pure Python Implementation:** Breadth-First Search (BFS), Depth-First Search (DFS), Greedy Best-First Search, and A\* Search implemented from foundational data structures (`collections.deque`, explicit LIFO stacks, `heapq` priority queues).
+* **Dual Problem Domains:**
+  * **2D Grid Maze Solver:** Interactive obstacle density sliders, custom wall painting/toggling, and real-time visualization of explored nodes, active frontiers, and optimal paths.
+  * **8-Puzzle Sliding Tiles:** Randomized solvable boards, custom configuration inputs, and live state-space search.
+* **1-by-1 Animated Tile Sliding:** The 8-puzzle solver visually animates tiles moving one by one into the empty space, highlighting the moving tile in pink with real-time directional labels (e.g., `Tile 6 slid UP into blank slot`).
+* **Universal Playback Controls:** Full control over animation playback across both web and desktop interfaces:
+  * ▶️ **Play / ⏸️ Pause:** Start and freeze the search visualization at any intermediate step.
+  * 🔄 **Reset:** Instantly return the board or maze to its initial state.
+  * ⏭️ **Step Forward:** Advance the exploration step-by-step to inspect search decisions.
+  * 🐢 **Slower / 🚀 Faster:** Quick preset buttons to adjust playback speed.
+  * ⏱️ **Speed Slider:** Continuous speed regulation (20 ms to 500 ms per step).
+* **Mathematical Solvability Guarantees:** 8-puzzle configurations are verified using the **Inversion Parity Theorem** to guarantee that only mathematically solvable configurations are executed.
+* **Multi-Algorithm Benchmarking:** Directly compare BFS, DFS, Greedy Best-First, and A\* across **path cost**, **nodes expanded**, **max frontier size**, and **execution time (ms)** with comparative charts.
 
 ---
 
-## 4. Visual Design & Dracula Theme Specification
+## 3. Supported Search Algorithms & Heuristics
 
-MazeMind AI adopts the official [Dracula Theme Specification](https://draculatheme.com/spec) across both the web application (`app.py`) and native desktop GUI (`gui_app.py`) for maximum legibility, eye comfort, and aesthetic consistency:
+| Algorithm | Category | Data Structure | Optimality Guarantee | Completeness |
+|:---|:---:|:---:|:---:|:---:|
+| **Breadth-First Search (BFS)** | Uninformed | FIFO Queue (`deque`) | Optimal for uniform step costs | Complete |
+| **Depth-First Search (DFS)** | Uninformed | LIFO Stack (explicit) | Non-optimal | Complete in finite spaces |
+| **Greedy Best-First Search** | Informed | Priority Queue (`heapq`) | Non-optimal ($f(n) = h(n)$) | Complete in finite spaces |
+| **A\* Search** | Informed | Priority Queue (`heapq`) | Optimal with admissible heuristic | Complete |
 
-| Dracula Element | Hex Code | UI / Visualization Application |
-|:---|:---:|:---|
-| **Background** | `#282a36` | Main window canvas, background plots, dark container panels |
-| **Current Line / Selection** | `#44475a` | Grid gridlines, unvisited maze cells, inactive tile backgrounds |
-| **Foreground** | `#f8f8f2` | Primary text, tile numbers, axes labels, table content |
-| **Comment** | `#6272a4` | Subtitles, muted helper captions, board borders |
-| **Purple** | `#bd93f9` | Accent headers, solution paths, primary CTA buttons |
-| **Pink** | `#ff79c6` | **Active 1-by-1 sliding tile** in 8-puzzle, frontier nodes |
-| **Green** | `#50fa7b` | Start cell `(0,0)`, success status badges, optimal metrics |
-| **Red** | `#ff5555` | Goal cell, maze wall obstacles, unsolvable warnings |
-| **Cyan** | `#8be9fd` | Explored nodes, visited grid cells, secondary highlights |
-| **Yellow** | `#f1fa8c` | Blank tile `[0]` slot, speed accents, warning notices |
-| **Orange** | `#ffb86c` | Inversion counts, heuristic weights, runtime metric indicators |
+### Heuristic Functions
+* **Manhattan Distance ($L_1$ Norm):** Calculates grid distance ignoring obstacles:
+  $$h_{\text{Manhattan}}(n) = |r_n - r_{\text{goal}}| + |c_n - c_{\text{goal}}|$$
+* **Euclidean Distance ($L_2$ Norm):** Calculates straight-line geometric distance:
+  $$h_{\text{Euclidean}}(n) = \sqrt{(r_n - r_{\text{goal}})^2 + (c_n - c_{\text{goal}})^2}$$
+* **Dominance Property:** Because diagonal steps are disallowed on orthogonal grids, $h_{\text{Manhattan}}(n) \ge h_{\text{Euclidean}}(n)$ for all states. Manhattan distance dominates Euclidean distance and expands fewer or equal nodes under A\*.
 
 ---
 
-## 5. Interactive Animation & Playback Controls
+## 4. 8-Puzzle Solvability (Inversion Parity Theorem)
 
-Both the Streamlit Web Application and Desktop GUI feature comprehensive, real-time animation engines:
+An inversion occurs whenever a higher-numbered tile precedes a lower-numbered tile in the linear sequence of the board (excluding the blank tile $0$):
 
-### 🧩 1-by-1 Animated 8-Puzzle Tile Sliding
-* **Sliding Mechanics:** Rather than abruptly jumping between puzzle states, the visualizer calculates the delta between consecutive states $S_{t-1}$ and $S_t$.
-* **Active Tile Highlighting:** The exact numbered tile moving into the empty slot is highlighted in **Dracula Pink (`#ff79c6`)**.
-* **Action Indicator:** Displays real-time move descriptions (e.g. `📍 Step 4: Tile 6 slid UP into blank slot`).
-* **Move History Log:** An expandable step-by-step trajectory recording each intermediate board state and slide direction.
-
-### 🎮 Universal Playback Controls
-* **▶️ Play / ⏸️ Pause:** Seamlessly start and freeze the animation at any exploration or solution step.
-* **🔄 Reset:** Instantly rewind the environment back to the initial start state.
-* **⏭️ Step Forward:** Advance the solver one step at a time for deep analysis of heuristic decisions.
-* **🐢 Slower / 🚀 Faster:** Quick preset buttons to decrease or increase animation delay.
-* **⏱️ Speed Slider:** Continuous fine-grained speed control (ranging from 20 ms to 500 ms per step).
-
----
-
-## 6. Theoretical Foundations & Mathematical Formulations
-
-### A. Classical Search Algorithms
-1. **Breadth-First Search (BFS):** Explores shallowest unexpanded nodes first using a FIFO queue (`collections.deque`). Guarantees optimal (shortest) path cost for uniform step costs:
-   $$g(n) = \text{depth}(n)$$
-2. **Depth-First Search (DFS):** Explores deepest unexpanded nodes first using an explicit LIFO stack with strict cycle prevention. Memory-efficient ($O(b \cdot m)$ space).
-3. **Greedy Best-First Search:** Evaluates nodes solely by heuristic estimate to goal:
-   $$f(n) = h(n)$$
-4. **A\* Search:** Combines historical cost $g(n)$ and heuristic estimate $h(n)$ to guarantee path optimality when $h(n)$ is admissible:
-   $$f(n) = g(n) + h(n)$$
-
-### B. Admissible Heuristics
-* **Manhattan Distance ($L_1$ Norm):** Represents distance on a 4-directional grid without obstacles:
-   $$h_{\text{Manhattan}}(n) = |r_n - r_{\text{goal}}| + |c_n - c_{\text{goal}}|$$
-* **Euclidean Distance ($L_2$ Norm):** Straight-line Euclidean distance:
-   $$h_{\text{Euclidean}}(n) = \sqrt{(r_n - r_{\text{goal}})^2 + (c_n - c_{\text{goal}})^2}$$
-* **Admissibility & Dominance:** Since diagonal moves are disallowed on grid topologies, $h_{\text{Manhattan}}(n) \ge h_{\text{Euclidean}}(n)$ everywhere. Manhattan distance dominates Euclidean distance and expands fewer or equal nodes in A*.
-
-### C. 8-Puzzle Solvability (Inversion Parity Theorem)
-An inversion occurs when a tile $S_i > S_j$ for indices $i < j$ (ignoring the blank tile $0$):
 $$\mathrm{Inv}(S) = \sum_{1 \le i < j \le 8} [S_i > S_j \land S_i \ne 0 \land S_j \ne 0]$$
 
-On a $3 \times 3$ board (odd width $W = 3$), horizontal tile slides preserve the linear order of tiles ($\Delta \mathrm{Inv} = 0$), while vertical slides swap a tile across two other tiles ($\Delta \mathrm{Inv} \in \{-2, 0, +2\}$). Therefore, inversion parity is an invariant:
+On a $3 \times 3$ board (odd width $W = 3$):
+* Horizontal tile slides do not change the linear order of tiles ($\Delta \mathrm{Inv} = 0$).
+* Vertical tile slides shift a tile past exactly two other tiles ($\Delta \mathrm{Inv} \in \{-2, 0, +2\}$).
+
+Since every valid slide changes the inversion count by an even number, the parity of inversions remains strictly invariant:
+
 $$\mathrm{Solvable}(S, G) \iff \mathrm{Inv}(S) \equiv \mathrm{Inv}(G) \pmod 2$$
+
+The application computes $\mathrm{Inv}(S)$ on every board generation to ensure users never run an unsolvable puzzle.
 
 ---
 
-## 7. Repository Directory Structure
+## 5. Repository Directory Structure
 
 ```text
 mazemind-ai/
@@ -136,8 +84,8 @@ mazemind-ai/
 ├── pyproject.toml                  # uv project configuration and dependencies
 ├── uv.lock                         # Deterministic uv lockfile
 ├── requirements.txt                # Exported via uv export for Streamlit Cloud
-├── README.md                       # Complete documentation, proposal details, and guides
-├── LICENSE                         # MIT License (Sami, 2026)
+├── README.md                       # Complete documentation and setup guides
+├── LICENSE                         # MIT License
 ├── app.py                          # Streamlit web application with live animated solving
 ├── gui_app.py                      # Standalone native desktop Canvas GUI (60 FPS)
 ├── src/
@@ -145,14 +93,14 @@ mazemind-ai/
 │       ├── __init__.py             # Public module exports
 │       ├── environments.py         # OOP classes: Environment, GridMaze, EightPuzzle
 │       ├── search_agents.py        # OOP classes: SearchAgent, BFSAgent, DFSAgent, GreedyAgent, AStarAgent
-│       └── visualizer.py           # SearchVisualizer (Dracula theme, 1-by-1 tile sliding, comparison charts)
+│       └── visualizer.py           # SearchVisualizer (1-by-1 tile sliding, comparison charts)
 └── tests/
     └── test_search.py              # Unit tests for BFS, DFS, Greedy, A*, heuristics, and parity
 ```
 
 ---
 
-## 8. Local Setup & Execution Guide
+## 6. Local Setup & Execution Guide
 
 ### 🐧 Linux (Ubuntu, Debian, Fedora, Arch, WSL)
 
@@ -193,13 +141,13 @@ uv run pytest
 ```
 
 #### 5. Launch the Applications
-* **Launch Interactive Web App (Streamlit):**
+* **Streamlit Web Application:**
   ```bash
   uv run streamlit run app.py
   ```
   Open your browser at `http://localhost:8501`.
 
-* **Launch Native Desktop GUI (Tkinter Canvas Animator):**
+* **Native Desktop Canvas GUI:**
   ```bash
   uv run python gui_app.py
   ```
@@ -227,7 +175,7 @@ uv run pytest
 ```
 
 #### 4. Launch Applications
-* **Streamlit Web App:**
+* **Streamlit Web Application:**
   ```powershell
   uv run streamlit run app.py
   ```
@@ -238,14 +186,14 @@ uv run pytest
 
 ---
 
-## 9. Streamlit Community Cloud Deployment
+## 7. Streamlit Community Cloud Deployment
 
 To host this project online on [Streamlit Community Cloud](https://share.streamlit.io):
 
 1. Commit and push your code to GitHub:
    ```bash
    git add .
-   git commit -m "feat: add Dracula theme, 8-puzzle tile animations, and playback controls"
+   git commit -m "feat: complete MazeMind AI implementation"
    git push -u origin main
    ```
 2. Navigate to [share.streamlit.io](https://share.streamlit.io) and log in with your GitHub account.
@@ -253,3 +201,10 @@ To host this project online on [Streamlit Community Cloud](https://share.streaml
 4. Set Repository: `QZainSami/mazemind-ai`.
 5. Set Main file path: `app.py`.
 6. Click **Deploy!** — Streamlit Cloud automatically detects `requirements.txt` and deploys your application within seconds.
+
+---
+
+## 8. Credits & Theme
+
+* **Visual Theme:** Styled with the official [Dracula Theme](https://draculatheme.com/spec) for high-contrast, comfortable visual aesthetics across both web and desktop interfaces.
+* **License:** Released under the [MIT License](LICENSE).
