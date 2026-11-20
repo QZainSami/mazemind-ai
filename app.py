@@ -217,7 +217,6 @@ if nav_selection == "1. 2D Grid Maze Solver":
         """
         <div class="header-bar">
             <span class="header-title">2D Grid Maze Solver & Visualizer</span>
-            <span class="header-badge">Dracula Theme • Classical State-Space Search</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -517,7 +516,6 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
         """
         <div class="header-bar">
             <span class="header-title">8-Puzzle State-Space Solver & Visualizer</span>
-            <span class="header-badge">1-by-1 Tile Movement Engine • Inversion Parity Verified</span>
         </div>
         """,
         unsafe_allow_html=True,
