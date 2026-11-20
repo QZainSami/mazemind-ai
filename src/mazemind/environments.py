@@ -1,6 +1,7 @@
 """
 Object-Oriented Environments for MazeMind AI.
 Includes the Abstract Base Class `Environment`, `GridMaze`, and `EightPuzzle`.
+Designed for CSL-325 Artificial Intelligence Lab (Fall 2026).
 """
 
 from abc import ABC, abstractmethod
@@ -11,8 +12,9 @@ import numpy as np
 
 class Environment(ABC):
     """
-    Abstract Base Class for search problem environments.
-    Enforces a standard interface for state transitions, heuristics, and feature extraction.
+    Abstract Base Class for state-space search environments.
+    Enforces a standard object-oriented interface for state transitions,
+    heuristics, and problem statistics.
     """
 
     @abstractmethod
@@ -39,8 +41,8 @@ class Environment(ABC):
         pass
 
     @abstractmethod
-    def extract_features(self) -> Dict[str, Any]:
-        """Extracts numerical features describing the environment for ML models."""
+    def get_stats(self) -> Dict[str, Any]:
+        """Returns descriptive statistics of the environment."""
         pass
 
 
@@ -53,7 +55,7 @@ class GridMaze(Environment):
     States are represented as (row, col) tuples.
     """
 
-    # 4-directional moves: Up, Down, Left, Right
+    # 4-directional moves: Up, Down, Left, Right (step cost = 1)
     DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
     def __init__(
@@ -99,23 +101,19 @@ class GridMaze(Environment):
     def heuristic(self, state: Tuple[int, int], metric: str = "manhattan") -> float:
         """
         Computes distance heuristic from state to goal.
-        Supports 'manhattan' (default) and 'euclidean'.
+        - 'manhattan': |r - gr| + |c - gc| (Admissible & consistent for orthogonal grid)
+        - 'euclidean': sqrt((r - gr)^2 + (c - gc)^2) (Straight-line distance)
         """
         r, c = state
         gr, gc = self.goal
         dr = abs(r - gr)
         dc = abs(c - gc)
         if metric == "euclidean":
-            return math.sqrt(dr * dr + dc * dc)
+            return float(math.sqrt(dr * dr + dc * dc))
         return float(dr + dc)
 
-    def extract_features(self) -> Dict[str, Any]:
-        """
-        Extracts geometric and topological features for ML inference.
-        Returns:
-            rows, cols, total_cells, wall_density, manhattan_dist,
-            euclidean_dist, dead_end_count, avg_open_neighbors
-        """
+    def get_stats(self) -> Dict[str, Any]:
+        """Returns topological and geometric characteristics of the maze."""
         total_cells = self.rows * self.cols
         wall_cells = int(np.sum(self.grid == 1))
         wall_density = float(wall_cells / total_cells) if total_cells > 0 else 0.0
@@ -125,8 +123,6 @@ class GridMaze(Environment):
         manhattan_dist = float(abs(sr - gr) + abs(sc - gc))
         euclidean_dist = float(math.sqrt((sr - gr) ** 2 + (sc - gc) ** 2))
 
-        # Dead ends: open cells having strictly 1 open cardinal neighbor
-        # Average open neighbors across all open cells
         open_cell_coords = [
             (r, c)
             for r in range(self.rows)
@@ -144,7 +140,6 @@ class GridMaze(Environment):
                 if self.is_valid_cell(nr, nc):
                     open_n += 1
             open_neighbor_counts.append(open_n)
-            # A dead end is a passage terminal with only 1 exit
             if open_n == 1:
                 dead_end_count += 1
 
@@ -156,12 +151,18 @@ class GridMaze(Environment):
             "rows": int(self.rows),
             "cols": int(self.cols),
             "total_cells": int(total_cells),
+            "open_cells": int(len(open_cell_coords)),
+            "wall_cells": int(wall_cells),
             "wall_density": round(wall_density, 4),
             "manhattan_dist": round(manhattan_dist, 4),
             "euclidean_dist": round(euclidean_dist, 4),
             "dead_end_count": int(dead_end_count),
             "avg_open_neighbors": round(avg_open_neighbors, 4),
         }
+
+    def extract_features(self) -> Dict[str, Any]:
+        """Backward compatibility alias for get_stats()."""
+        return self.get_stats()
 
     def clone(self) -> "GridMaze":
         """Creates a deep copy of the GridMaze."""
@@ -225,7 +226,8 @@ class EightPuzzle(Environment):
         """
         Checks solvability using inversion parity.
         For odd grid width (3x3), a state is solvable if and only if
-        its inversion count parity matches the goal state parity.
+        its inversion count parity matches the goal state parity:
+        Inv(S) = Inv(G) (mod 2)
         """
         target = goal_state if goal_state is not None else cls.STANDARD_GOAL
         return (cls.count_inversions(state) % 2) == (cls.count_inversions(target) % 2)
@@ -239,7 +241,6 @@ class EightPuzzle(Environment):
         r, c = divmod(blank_idx, 3)
 
         neighbors: List[Tuple[Tuple[int, ...], int]] = []
-        # Possible blank moves: Up (-1, 0), Down (1, 0), Left (0, -1), Right (0, 1)
         moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
         for dr, dc in moves:
@@ -258,9 +259,11 @@ class EightPuzzle(Environment):
 
     def heuristic(self, state: Tuple[int, ...], metric: str = "manhattan") -> float:
         """
-        Computes heuristic distance from state to goal.
+        Computes heuristic distance from state to goal:
         - 'manhattan': Sum of Manhattan distances of all numbered tiles (excluding 0)
-          to their positions in goal_state. Admissible & consistent.
+          to their positions in goal_state. Admissible and consistent.
+        - 'euclidean': Sum of Euclidean distances of all numbered tiles (excluding 0)
+          to their positions in goal_state. Admissible straight-line bound.
         - 'misplaced': Count of non-zero tiles not in their goal position.
         """
         if metric == "misplaced":
@@ -272,28 +275,38 @@ class EightPuzzle(Environment):
                 )
             )
 
-        # Manhattan distance
-        total_dist = 0
         goal_positions = {val: divmod(idx, 3) for idx, val in enumerate(self.goal_state)}
+        total_dist = 0.0
 
         for idx, val in enumerate(state):
             if val != 0:
                 cur_r, cur_c = divmod(idx, 3)
                 goal_r, goal_c = goal_positions[val]
-                total_dist += abs(cur_r - goal_r) + abs(cur_c - goal_c)
+                dr = abs(cur_r - goal_r)
+                dc = abs(cur_c - goal_c)
+                if metric == "euclidean":
+                    total_dist += math.sqrt(dr * dr + dc * dc)
+                else:
+                    total_dist += dr + dc
 
         return float(total_dist)
 
-    def extract_features(self) -> Dict[str, Any]:
-        """Extracts features for the 8-puzzle board."""
+    def get_stats(self) -> Dict[str, Any]:
+        """Extracts descriptive metrics for the 8-puzzle board."""
         inversions = self.count_inversions(self.start_state)
         solvable = self.is_solvable(self.start_state, self.goal_state)
         manhattan_h = self.heuristic(self.start_state, metric="manhattan")
+        euclidean_h = self.heuristic(self.start_state, metric="euclidean")
         misplaced_h = self.heuristic(self.start_state, metric="misplaced")
 
         return {
             "inversion_count": inversions,
             "is_solvable": solvable,
             "initial_manhattan": manhattan_h,
+            "initial_euclidean": round(euclidean_h, 3),
             "initial_misplaced": misplaced_h,
         }
+
+    def extract_features(self) -> Dict[str, Any]:
+        """Backward compatibility alias for get_stats()."""
+        return self.get_stats()

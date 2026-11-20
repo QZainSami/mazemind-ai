@@ -18,8 +18,6 @@ click==8.5.1
     # via
     #   streamlit
     #   uvicorn
-cloudpickle==3.1.2
-    # via joblib
 contourpy==1.4.0
     # via matplotlib
 cycler==0.12.1
@@ -38,10 +36,6 @@ jinja2==3.1.6
     # via
     #   altair
     #   pydeck
-joblib==1.6.0
-    # via
-    #   mazemind
-    #   scikit-learn
 jsonschema==4.26.0
     # via altair
 jsonschema-specifications==2025.9.1
@@ -51,13 +45,9 @@ kiwisolver==1.5.1
 markupsafe==3.0.4
     # via jinja2
 matplotlib==3.11.2
-    # via
-    #   mazemind
-    #   seaborn
+    # via mazemind
 narwhals==2.28.0
-    # via
-    #   altair
-    #   scikit-learn
+    # via altair
 numpy==2.5.5
     # via
     #   contourpy
@@ -65,9 +55,6 @@ numpy==2.5.5
     #   mazemind
     #   pandas
     #   pydeck
-    #   scikit-learn
-    #   scipy
-    #   seaborn
     #   streamlit
 packaging==26.3
     # via
@@ -77,7 +64,6 @@ packaging==26.3
 pandas==3.1.1
     # via
     #   mazemind
-    #   seaborn
     #   streamlit
 pillow==13.0.0
     # via
@@ -107,18 +93,10 @@ rpds-py==2026.9.1
     # via
     #   jsonschema
     #   referencing
-scikit-learn==1.9.1
-    # via mazemind
-scipy==1.18.1
-    # via scikit-learn
-seaborn==0.13.2
-    # via mazemind
 starlette==1.10.0
     # via streamlit
 streamlit==1.67.0
     # via mazemind
-threadpoolctl==3.8.0
-    # via scikit-learn
 typing-extensions==4.16.0
     # via
     #   altair

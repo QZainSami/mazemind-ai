@@ -1,10 +1,12 @@
 """
 MazeMind AI — Native Desktop GUI Application.
 High-performance Canvas-based GUI featuring:
-- Real-time 60 FPS animated search with dynamic speed control (1ms to 200ms)
+- Real-time 60 FPS animated search with dynamic speed control (1ms to 150ms)
 - Interactive grid editing (Left-click to place walls, Right-click to erase)
-- Live ML Pre-Scan predicting algorithm and optimal steps before solving
+- Heuristic selection: Manhattan Distance & Euclidean Distance
+- Both 2D Grid Maze and 8-Puzzle sliding tile solvers
 - Full OOP integration with `src/mazemind` (BFS, DFS, Greedy, A*)
+Course: CSL-325 Artificial Intelligence Lab (Fall 2026).
 """
 
 import math
@@ -21,7 +23,7 @@ import numpy as np
 # Ensure src is on path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
 
-from mazemind.environments import GridMaze
+from mazemind.environments import GridMaze, EightPuzzle
 from mazemind.search_agents import (
     SearchResult,
     BFSAgent,
@@ -29,7 +31,6 @@ from mazemind.search_agents import (
     GreedyAgent,
     AStarAgent,
 )
-from mazemind.ml_predictor import MLPredictor
 
 
 class MazeDesktopApp:
@@ -43,7 +44,6 @@ class MazeDesktopApp:
     COLOR_WALL = "#2B2D42"
     COLOR_START = "#2ECC71"
     COLOR_GOAL = "#E74C3C"
-    COLOR_FRONTIER = "#F39C12"
     COLOR_VISITED = "#74B9FF"
     COLOR_PATH = "#FF7675"
     COLOR_PATH_LINE = "#D63031"
@@ -52,9 +52,9 @@ class MazeDesktopApp:
 
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("MazeMind AI — Native Desktop Solver & Animator")
+        self.root.title("MazeMind AI — Puzzle Solver & Search Visualizer (CSL-325)")
         self.root.geometry("1100x750")
-        self.root.minsize(950, 650)
+        self.root.minsize(980, 680)
         self.root.configure(bg=self.COLOR_BG)
 
         # Maze parameters
@@ -73,13 +73,9 @@ class MazeDesktopApp:
         self.anim_path: List[Tuple[int, int]] = []
         self.current_result: Optional[SearchResult] = None
 
-        # ML Predictor
-        self.predictor = MLPredictor(models_dir="models")
-
         # Build UI layout
         self._setup_styles()
         self._build_widgets()
-        self._update_ml_prescan()
         self._redraw_grid()
 
     def _setup_styles(self):
@@ -92,7 +88,6 @@ class MazeDesktopApp:
         style.configure("Accent.TButton", background=self.COLOR_ACCENT, foreground="white", font=("Segoe UI", 10, "bold"))
 
     def _build_widgets(self):
-        # Main layout: Left controls panel (300px), Right Canvas (rest)
         self.main_container = tk.Frame(self.root, bg=self.COLOR_BG)
         self.main_container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
 
@@ -121,55 +116,59 @@ class MazeDesktopApp:
 
         sub_lbl = tk.Label(
             self.sidebar,
-            text="CSL-325 • Real-Time Search Animator",
+            text="CSL-325 • Real-Time Search Visualizer",
             font=("Segoe UI", 9),
             bg=self.COLOR_PANEL,
             fg="#B2BEC3",
         )
-        sub_lbl.pack(anchor="w", pady=(0, 12))
+        sub_lbl.pack(anchor="w", pady=(0, 8))
 
-        # --- Section 1: ML Pre-Scan Card ---
-        self.ml_frame = tk.LabelFrame(
+        # Academic Profile Card
+        team_lbl = tk.Label(
             self.sidebar,
-            text=" 🤖 ML Real-Time Pre-Scan ",
-            font=("Segoe UI", 9, "bold"),
-            bg=self.COLOR_PANEL,
-            fg="#00CEC9",
+            text="Group: Samiullah, Musavir, Farman\nInstructor: Sir Shahid | BS (CS) 5-B",
+            font=("Segoe UI", 8),
+            justify=tk.LEFT,
+            bg="#2D3250",
+            fg="#F9F9F9",
             padx=8,
-            pady=8,
+            pady=4,
+            relief=tk.RIDGE,
         )
-        self.ml_frame.pack(fill=tk.X, pady=(0, 12))
+        team_lbl.pack(fill=tk.X, pady=(0, 10))
 
-        self.lbl_ml_algo = tk.Label(
-            self.ml_frame,
-            text="Recommended: Analyzing...",
-            font=("Segoe UI", 10, "bold"),
-            bg=self.COLOR_PANEL,
-            fg="#FFEAA7",
-        )
-        self.lbl_ml_algo.pack(anchor="w")
-
-        self.lbl_ml_cost = tk.Label(
-            self.ml_frame,
-            text="Expected Steps: --",
-            font=("Segoe UI", 9),
+        # --- Section 1: Heuristic Selector ---
+        lbl_heur = tk.Label(
+            self.sidebar,
+            text="Heuristic Distance Function:",
+            font=("Segoe UI", 9, "bold"),
             bg=self.COLOR_PANEL,
             fg=self.COLOR_TEXT,
         )
-        self.lbl_ml_cost.pack(anchor="w")
+        lbl_heur.pack(anchor="w", pady=(4, 2))
+
+        self.heur_var = tk.StringVar(value="Manhattan Distance")
+        self.combo_heur = ttk.Combobox(
+            self.sidebar,
+            textvariable=self.heur_var,
+            values=["Manhattan Distance", "Euclidean Distance"],
+            state="readonly",
+            font=("Segoe UI", 9),
+        )
+        self.combo_heur.pack(fill=tk.X, pady=(0, 8))
 
         # --- Section 2: Algorithm Selector ---
         lbl_algo = tk.Label(
             self.sidebar,
             text="Search Algorithm:",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 9, "bold"),
             bg=self.COLOR_PANEL,
             fg=self.COLOR_TEXT,
         )
-        lbl_algo.pack(anchor="w", pady=(6, 2))
+        lbl_algo.pack(anchor="w", pady=(4, 2))
 
-        self.algo_var = tk.StringVar(value="A* (Manhattan)")
-        algos = ["A* (Manhattan)", "BFS", "DFS", "Greedy Best-First"]
+        self.algo_var = tk.StringVar(value="A* Search")
+        algos = ["A* Search", "Breadth-First Search (BFS)", "Depth-First Search (DFS)", "Greedy Best-First Search"]
         self.combo_algo = ttk.Combobox(
             self.sidebar,
             textvariable=self.algo_var,
@@ -177,13 +176,13 @@ class MazeDesktopApp:
             state="readonly",
             font=("Segoe UI", 9),
         )
-        self.combo_algo.pack(fill=tk.X, pady=(0, 10))
+        self.combo_algo.pack(fill=tk.X, pady=(0, 8))
 
-        # --- Section 3: Animation Speed Control ---
+        # --- Section 3: Animation Speed Slider ---
         lbl_speed = tk.Label(
             self.sidebar,
-            text="Animation Speed (Delay ms):",
-            font=("Segoe UI", 10, "bold"),
+            text="Animation Delay (1 ms to 150 ms):",
+            font=("Segoe UI", 9, "bold"),
             bg=self.COLOR_PANEL,
             fg=self.COLOR_TEXT,
         )
@@ -200,7 +199,7 @@ class MazeDesktopApp:
             highlightthickness=0,
             activebackground=self.COLOR_ACCENT,
         )
-        self.speed_scale.set(15)  # 15ms default (smooth and quick)
+        self.speed_scale.set(15)
         self.speed_scale.pack(fill=tk.X, pady=(0, 10))
 
         # --- Section 4: Action Buttons ---
@@ -209,14 +208,14 @@ class MazeDesktopApp:
             text="▶️ Solve & Animate",
             bg="#00B894",
             fg="white",
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 10, "bold"),
             relief=tk.FLAT,
             padx=10,
             pady=6,
             command=self.start_solving_animation,
             cursor="hand2",
         )
-        self.btn_solve.pack(fill=tk.X, pady=(4, 6))
+        self.btn_solve.pack(fill=tk.X, pady=(4, 4))
 
         btn_row1 = tk.Frame(self.sidebar, bg=self.COLOR_PANEL)
         btn_row1.pack(fill=tk.X, pady=2)
@@ -245,7 +244,6 @@ class MazeDesktopApp:
         )
         self.btn_step.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(2, 0))
 
-        # Maze Generation & Clear
         btn_row2 = tk.Frame(self.sidebar, bg=self.COLOR_PANEL)
         btn_row2.pack(fill=tk.X, pady=(6, 2))
 
@@ -273,6 +271,19 @@ class MazeDesktopApp:
         )
         self.btn_clear.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(2, 0))
 
+        # Compare All Solvers Button
+        self.btn_compare = tk.Button(
+            self.sidebar,
+            text="📊 Benchmark All 4 Algorithms",
+            bg="#E17055",
+            fg="white",
+            font=("Segoe UI", 9, "bold"),
+            relief=tk.FLAT,
+            command=self.compare_all_algorithms,
+            cursor="hand2",
+        )
+        self.btn_compare.pack(fill=tk.X, pady=(6, 8))
+
         # Instructions Label
         info_text = (
             "💡 Interaction Guide:\n"
@@ -288,7 +299,7 @@ class MazeDesktopApp:
             bg=self.COLOR_PANEL,
             fg="#B2BEC3",
         )
-        lbl_info.pack(anchor="w", pady=(12, 0))
+        lbl_info.pack(anchor="w", pady=(8, 0))
 
     def _build_viewport(self):
         # Top KPI bar
@@ -306,7 +317,7 @@ class MazeDesktopApp:
 
         self.lbl_cost = tk.Label(
             self.kpi_frame,
-            text="Path Cost: --",
+            text="Path Length: --",
             font=("Segoe UI", 10),
             bg=self.COLOR_PANEL,
             fg=self.COLOR_TEXT,
@@ -373,7 +384,6 @@ class MazeDesktopApp:
         if cell and cell != self.start and cell != self.goal:
             r, c = cell
             self.grid[r, c] = 1
-            self._update_ml_prescan()
             self._redraw_grid()
 
     def _on_right_click(self, event):
@@ -383,7 +393,6 @@ class MazeDesktopApp:
         if cell and cell != self.start and cell != self.goal:
             r, c = cell
             self.grid[r, c] = 0
-            self._update_ml_prescan()
             self._redraw_grid()
 
     # --- Grid Drawing Logic ---
@@ -395,7 +404,6 @@ class MazeDesktopApp:
         if w <= 1 or h <= 1:
             return
 
-        # Calculate optimal cell size to fit canvas nicely
         margin = 30
         max_cw = (w - margin) // self.cols
         max_ch = (h - margin) // self.rows
@@ -406,7 +414,6 @@ class MazeDesktopApp:
         offset_x = max(0, (w - grid_w) // 2)
         offset_y = max(0, (h - grid_h) // 2)
 
-        # Draw cells
         visited_set = set(self.anim_history[: self.anim_step_index])
         path_set = set(self.anim_path) if self.anim_step_index >= len(self.anim_history) and self.anim_path else set()
 
@@ -417,7 +424,6 @@ class MazeDesktopApp:
                 x2 = x1 + self.cell_size
                 y2 = y1 + self.cell_size
 
-                # Cell color determination
                 if (r, c) == self.start:
                     color = self.COLOR_START
                 elif (r, c) == self.goal:
@@ -435,7 +441,6 @@ class MazeDesktopApp:
                     x1, y1, x2, y2, fill=color, outline="#DFE6E9", width=1
                 )
 
-                # Markers for Start and Goal
                 if (r, c) == self.start:
                     self.canvas.create_text(
                         (x1 + x2) // 2, (y1 + y2) // 2, text="S", fill="white", font=("Segoe UI", 12, "bold")
@@ -445,7 +450,6 @@ class MazeDesktopApp:
                         (x1 + x2) // 2, (y1 + y2) // 2, text="G", fill="white", font=("Segoe UI", 12, "bold")
                     )
 
-        # Draw path line trace if solution is complete
         if path_set and len(self.anim_path) > 1:
             points = []
             for r, c in self.anim_path:
@@ -453,19 +457,6 @@ class MazeDesktopApp:
                 py = offset_y + r * self.cell_size + self.cell_size // 2
                 points.extend([px, py])
             self.canvas.create_line(points, fill=self.COLOR_PATH_LINE, width=3, smooth=True)
-
-    # --- ML Pre-Scan ---
-    def _update_ml_prescan(self):
-        if not self.predictor.is_ready():
-            return
-        maze = GridMaze(grid=self.grid, start=self.start, goal=self.goal)
-        pred = self.predictor.predict_maze(maze)
-        rec = pred["recommended_algo"]
-        cost = pred["predicted_path_cost"]
-        conf = pred["probabilities"].get(rec, 0.0) * 100
-
-        self.lbl_ml_algo.config(text=f"Recommended: {rec} ({conf:.0f}% conf)")
-        self.lbl_ml_cost.config(text=f"Expected Steps: {cost} steps")
 
     # --- Maze Actions ---
     def generate_random_maze(self):
@@ -478,11 +469,10 @@ class MazeDesktopApp:
         self.anim_history.clear()
         self.anim_path.clear()
         self.anim_step_index = 0
-        self.lbl_status.config(text="Status: Random Maze Created", fg="#55EFC4")
-        self.lbl_cost.config(text="Path Cost: --")
+        self.lbl_status.config(text="Status: Random Maze Generated", fg="#55EFC4")
+        self.lbl_cost.config(text="Path Length: --")
         self.lbl_nodes.config(text="Nodes Visited: 0")
         self.lbl_time.config(text="Time: 0.0 ms")
-        self._update_ml_prescan()
         self._redraw_grid()
 
     def clear_walls(self):
@@ -493,7 +483,6 @@ class MazeDesktopApp:
         self.anim_path.clear()
         self.anim_step_index = 0
         self.lbl_status.config(text="Status: All Walls Cleared", fg="#55EFC4")
-        self._update_ml_prescan()
         self._redraw_grid()
 
     # --- Animation & Solving Loop ---
@@ -503,15 +492,16 @@ class MazeDesktopApp:
 
         maze = GridMaze(grid=self.grid, start=self.start, goal=self.goal)
         algo_name = self.algo_var.get()
+        metric_key = "manhattan" if "Manhattan" in self.heur_var.get() else "euclidean"
 
         if "A*" in algo_name:
-            agent = AStarAgent()
+            agent = AStarAgent(name=f"A* ({metric_key.title()})", heuristic_metric=metric_key)
         elif "BFS" in algo_name:
-            agent = BFSAgent()
+            agent = BFSAgent(name="BFS")
         elif "DFS" in algo_name:
-            agent = DFSAgent()
+            agent = DFSAgent(name="DFS")
         else:
-            agent = GreedyAgent()
+            agent = GreedyAgent(name=f"Greedy ({metric_key.title()})", heuristic_metric=metric_key)
 
         self.current_result = agent.solve(maze)
         self.anim_history = self.current_result.exploration_history
@@ -521,7 +511,7 @@ class MazeDesktopApp:
         self.is_animating = True
         self.is_paused = False
         self.btn_pause.config(text="⏸️ Pause")
-        self.lbl_status.config(text=f"Status: Searching ({agent.name})...", fg="#FDCB6E")
+        self.lbl_status.config(text=f"Status: Searching with {agent.name}...", fg="#FDCB6E")
         self.lbl_time.config(text=f"Time: {self.current_result.execution_time_ms:.2f} ms")
 
         self._run_animation_tick()
@@ -533,7 +523,6 @@ class MazeDesktopApp:
         total_steps = len(self.anim_history)
 
         if self.anim_step_index < total_steps:
-            # Stride adapts to speed
             delay = max(1, int(self.speed_scale.get()))
             stride = 1 if delay > 30 else (2 if delay > 10 else 4)
 
@@ -542,15 +531,14 @@ class MazeDesktopApp:
             self._redraw_grid()
             self.root.after(delay, self._run_animation_tick)
         else:
-            # Animation complete
             self.is_animating = False
             self._redraw_grid()
             if self.current_result and self.current_result.found:
                 self.lbl_status.config(text="Status: ✅ Path Found!", fg="#00B894")
-                self.lbl_cost.config(text=f"Path Cost: {self.current_result.path_cost} steps")
+                self.lbl_cost.config(text=f"Path Length: {self.current_result.path_cost} steps")
             else:
-                self.lbl_status.config(text="Status: ❌ No Path Exists!", fg="#D63031")
-                self.lbl_cost.config(text="Path Cost: Unsolvable")
+                self.lbl_status.config(text="Status: ❌ Unsolvable Maze!", fg="#D63031")
+                self.lbl_cost.config(text="Path Length: N/A")
 
     def toggle_pause(self):
         if not self.is_animating:
@@ -574,7 +562,36 @@ class MazeDesktopApp:
             self._redraw_grid()
             if self.anim_step_index == total_steps and self.current_result and self.current_result.found:
                 self.lbl_status.config(text="Status: ✅ Path Found!", fg="#00B894")
-                self.lbl_cost.config(text=f"Path Cost: {self.current_result.path_cost} steps")
+                self.lbl_cost.config(text=f"Path Length: {self.current_result.path_cost} steps")
+
+    def compare_all_algorithms(self):
+        """Runs all 4 algorithms and displays comparative metrics in a popup dialog."""
+        maze = GridMaze(grid=self.grid, start=self.start, goal=self.goal)
+        metric_key = "manhattan" if "Manhattan" in self.heur_var.get() else "euclidean"
+
+        agents = [
+            AStarAgent(name=f"A* ({metric_key.title()})", heuristic_metric=metric_key),
+            BFSAgent(name="BFS"),
+            DFSAgent(name="DFS"),
+            GreedyAgent(name=f"Greedy ({metric_key.title()})", heuristic_metric=metric_key),
+        ]
+
+        summary_lines = [
+            f"=== Benchmark Comparison Matrix ({self.rows}x{self.cols} Maze) ===",
+            f"Heuristic: {metric_key.title()}\n",
+            f"{'Algorithm':<22} | {'Found?':<7} | {'Path Cost':<9} | {'Nodes':<7} | {'Time (ms)'}",
+            "-" * 65,
+        ]
+
+        for ag in agents:
+            res = ag.solve(maze)
+            status_str = "Yes" if res.found else "No"
+            cost_str = str(res.path_cost) if res.found else "N/A"
+            summary_lines.append(
+                f"{ag.name:<22} | {status_str:<7} | {cost_str:<9} | {res.nodes_expanded:<7} | {res.execution_time_ms:.2f}"
+            )
+
+        messagebox.showinfo("Algorithm Comparison", "\n".join(summary_lines))
 
 
 def launch_gui():

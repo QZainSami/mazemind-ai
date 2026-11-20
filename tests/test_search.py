@@ -1,7 +1,12 @@
 """
 Unit Tests for Search Algorithms and Environments.
-Verifies optimality of A* and BFS, DFS and Greedy behavior,
-and 8-Puzzle solvability and heuristic correctness.
+Verifies:
+- Optimality of BFS and A* (with Manhattan and Euclidean heuristics)
+- DFS path finding and cycle prevention
+- Greedy Best-First Search heuristics
+- 8-Puzzle solvability inversion parity math
+- 8-Puzzle A* and BFS solving
+Course: CSL-325 Artificial Intelligence Lab (Fall 2026).
 """
 
 import pytest
@@ -17,17 +22,21 @@ def test_grid_maze_empty_optimality():
     maze = GridMaze(grid=grid, start=(0, 0), goal=(7, 7))
 
     bfs = BFSAgent()
-    astar = AStarAgent()
+    astar_manhattan = AStarAgent(heuristic_metric="manhattan")
+    astar_euclidean = AStarAgent(heuristic_metric="euclidean")
 
     bfs_res = bfs.solve(maze)
-    astar_res = astar.solve(maze)
+    astar_m_res = astar_manhattan.solve(maze)
+    astar_e_res = astar_euclidean.solve(maze)
 
     assert bfs_res.found is True
-    assert astar_res.found is True
+    assert astar_m_res.found is True
+    assert astar_e_res.found is True
     # Manhattan distance on 8x8 is 14 steps
     assert bfs_res.path_cost == 14
-    assert astar_res.path_cost == 14
-    assert len(bfs_res.path) == len(astar_res.path)
+    assert astar_m_res.path_cost == 14
+    assert astar_e_res.path_cost == 14
+    assert len(bfs_res.path) == len(astar_m_res.path)
 
 
 def test_grid_maze_with_obstacle_wall():
@@ -39,9 +48,9 @@ def test_grid_maze_with_obstacle_wall():
     maze = GridMaze(grid=grid, start=(0, 0), goal=(0, 6))
 
     bfs = BFSAgent()
-    astar = AStarAgent()
+    astar = AStarAgent(heuristic_metric="manhattan")
     dfs = DFSAgent()
-    greedy = GreedyAgent()
+    greedy = GreedyAgent(heuristic_metric="manhattan")
 
     bfs_res = bfs.solve(maze)
     astar_res = astar.solve(maze)
@@ -55,7 +64,6 @@ def test_grid_maze_with_obstacle_wall():
 
     # A* and BFS must yield identical optimal path length
     assert astar_res.path_cost == bfs_res.path_cost
-    # Path should start at start and end at goal
     assert astar_res.path[0] == (0, 0)
     assert astar_res.path[-1] == (0, 6)
 
@@ -69,7 +77,12 @@ def test_unsolvable_grid_maze():
 
     maze = GridMaze(grid=grid, start=(0, 0), goal=(4, 4))
 
-    for agent in [BFSAgent(), DFSAgent(), GreedyAgent(), AStarAgent()]:
+    for agent in [
+        BFSAgent(),
+        DFSAgent(),
+        GreedyAgent(heuristic_metric="manhattan"),
+        AStarAgent(heuristic_metric="manhattan"),
+    ]:
         res = agent.solve(maze)
         assert res.found is False
         assert res.path == []
@@ -89,11 +102,10 @@ def test_eight_puzzle_solvability():
 
 def test_eight_puzzle_astar_solution():
     """Verify A* solves a known 8-puzzle board with minimal steps."""
-    # Move blank right from (1, 2, 3, 4, 5, 6, 7, 0, 8) to goal
     start = (1, 2, 3, 4, 5, 6, 7, 0, 8)
     puzzle = EightPuzzle(start_state=start)
 
-    astar = AStarAgent()
+    astar = AStarAgent(heuristic_metric="manhattan")
     res = astar.solve(puzzle)
 
     assert res.found is True
@@ -103,20 +115,40 @@ def test_eight_puzzle_astar_solution():
 
 def test_eight_puzzle_multistep_solution():
     """Verify A* and BFS find optimal path for a 3-step puzzle."""
-    # Standard goal: (1, 2, 3, 4, 5, 6, 7, 8, 0)
-    # Start: blank moved left, left, up
-    # (1, 2, 3, 4, 0, 5, 7, 8, 6)
     start = (1, 2, 3, 4, 0, 6, 7, 5, 8)
     puzzle = EightPuzzle(start_state=start)
 
     assert puzzle.is_solvable(start) is True
 
-    astar = AStarAgent(heuristic_metric="manhattan")
+    astar_m = AStarAgent(heuristic_metric="manhattan")
+    astar_e = AStarAgent(heuristic_metric="euclidean")
     bfs = BFSAgent()
 
-    astar_res = astar.solve(puzzle)
+    astar_m_res = astar_m.solve(puzzle)
+    astar_e_res = astar_e.solve(puzzle)
     bfs_res = bfs.solve(puzzle)
 
-    assert astar_res.found is True
+    assert astar_m_res.found is True
+    assert astar_e_res.found is True
     assert bfs_res.found is True
-    assert astar_res.path_cost == bfs_res.path_cost
+    assert astar_m_res.path_cost == bfs_res.path_cost
+    assert astar_e_res.path_cost == bfs_res.path_cost
+
+
+def test_maze_and_puzzle_stats():
+    """Verify environment statistics dictionaries."""
+    grid = np.zeros((6, 6), dtype=np.int32)
+    grid[2, 2] = 1
+    maze = GridMaze(grid=grid, start=(0, 0), goal=(5, 5))
+    stats = maze.get_stats()
+
+    assert stats["rows"] == 6
+    assert stats["cols"] == 6
+    assert stats["total_cells"] == 36
+    assert stats["wall_cells"] == 1
+    assert stats["manhattan_dist"] == 10.0
+
+    puzzle = EightPuzzle(start_state=(1, 2, 3, 4, 0, 6, 7, 5, 8))
+    p_stats = puzzle.get_stats()
+    assert p_stats["is_solvable"] is True
+    assert p_stats["inversion_count"] % 2 == 0

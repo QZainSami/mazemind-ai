@@ -5,6 +5,7 @@ Implements SearchResult dataclass and SearchAgent hierarchy:
 - DFSAgent (Depth-First Search)
 - GreedyAgent (Greedy Best-First Search)
 - AStarAgent (A* Search)
+Course: CSL-325 Artificial Intelligence Lab (Fall 2026).
 """
 
 from abc import ABC, abstractmethod
@@ -30,6 +31,7 @@ class SearchResult:
     max_frontier_size: int = 0
     execution_time_ms: float = 0.0
     exploration_history: List[Any] = field(default_factory=list)
+    heuristic_metric: str = "none"
 
 
 class SearchAgent(ABC):
@@ -75,6 +77,8 @@ class BFSAgent(SearchAgent):
     """
     Breadth-First Search (BFS) Agent.
     Guarantees shortest path in unweighted graphs using a FIFO queue.
+    Completeness: Yes (on finite branching factor).
+    Optimality: Yes (for uniform step costs).
     """
 
     def __init__(self, name: str = "BFS"):
@@ -95,6 +99,7 @@ class BFSAgent(SearchAgent):
                 max_frontier_size=1,
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
+                heuristic_metric="none",
             )
 
         queue: deque = deque([start])
@@ -128,7 +133,9 @@ class BFSAgent(SearchAgent):
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         path = (
-            self.reconstruct_path(parent_map, start, goal_state) if found and goal_state is not None else []
+            self.reconstruct_path(parent_map, start, goal_state)
+            if found and goal_state is not None
+            else []
         )
         path_cost = cost_map.get(goal_state, 0) if found and goal_state is not None else 0
 
@@ -141,14 +148,16 @@ class BFSAgent(SearchAgent):
             max_frontier_size=max_frontier_size,
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
+            heuristic_metric="none",
         )
 
 
 class DFSAgent(SearchAgent):
     """
     Depth-First Search (DFS) Agent.
-    Uses an explicit LIFO stack to prevent Python call-stack exhaustion on large grids.
-    Tracks cycles via a visited set.
+    Uses an explicit LIFO stack to prevent call-stack limits on large grids.
+    Completeness: Yes (with cycle detection in finite spaces).
+    Optimality: No.
     """
 
     def __init__(self, name: str = "DFS"):
@@ -169,6 +178,7 @@ class DFSAgent(SearchAgent):
                 max_frontier_size=1,
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
+                heuristic_metric="none",
             )
 
         stack: List[Any] = [start]
@@ -198,8 +208,8 @@ class DFSAgent(SearchAgent):
                 goal_state = current
                 break
 
-            # Reverse neighbor iteration for natural search direction
             neighbors = env.get_neighbors(current)
+            # Push in reverse so first neighbor is expanded next
             for neighbor, step_cost in reversed(neighbors):
                 if neighbor not in visited:
                     if neighbor not in parent_map:
@@ -209,7 +219,9 @@ class DFSAgent(SearchAgent):
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         path = (
-            self.reconstruct_path(parent_map, start, goal_state) if found and goal_state is not None else []
+            self.reconstruct_path(parent_map, start, goal_state)
+            if found and goal_state is not None
+            else []
         )
         path_cost = cost_map.get(goal_state, 0) if found and goal_state is not None else 0
 
@@ -222,17 +234,24 @@ class DFSAgent(SearchAgent):
             max_frontier_size=max_frontier_size,
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
+            heuristic_metric="none",
         )
 
 
 class GreedyAgent(SearchAgent):
     """
     Greedy Best-First Search Agent.
-    Expands nodes ordered strictly by heuristic estimate f(n) = h(n).
-    Uses heapq with a tie-breaker counter.
+    Evaluates nodes strictly by heuristic estimate: f(n) = h(n).
+    Uses heapq with an insertion counter to break ties cleanly.
+    Completeness: Yes (with visited check in finite spaces).
+    Optimality: No.
     """
 
-    def __init__(self, name: str = "Greedy Best-First", heuristic_metric: str = "manhattan"):
+    def __init__(
+        self,
+        name: str = "Greedy Best-First",
+        heuristic_metric: str = "manhattan",
+    ):
         super().__init__(name)
         self.heuristic_metric = heuristic_metric
 
@@ -251,11 +270,11 @@ class GreedyAgent(SearchAgent):
                 max_frontier_size=1,
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
+                heuristic_metric=self.heuristic_metric,
             )
 
         counter = 0
         h_start = env.heuristic(start, metric=self.heuristic_metric)
-        # Heap items: (h_score, counter, state)
         frontier: List[Tuple[float, int, Any]] = [(h_start, counter, start)]
         visited: Set[Any] = set()
         parent_map: Dict[Any, Optional[Any]] = {start: None}
@@ -294,7 +313,9 @@ class GreedyAgent(SearchAgent):
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         path = (
-            self.reconstruct_path(parent_map, start, goal_state) if found and goal_state is not None else []
+            self.reconstruct_path(parent_map, start, goal_state)
+            if found and goal_state is not None
+            else []
         )
         path_cost = cost_map.get(goal_state, 0) if found and goal_state is not None else 0
 
@@ -307,17 +328,24 @@ class GreedyAgent(SearchAgent):
             max_frontier_size=max_frontier_size,
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
+            heuristic_metric=self.heuristic_metric,
         )
 
 
 class AStarAgent(SearchAgent):
     """
     A* Search Agent.
-    Evaluates states by f(n) = g(n) + h(n).
-    Maintains g_score dict to guarantee optimality with admissible & consistent heuristics.
+    Evaluates nodes by f(n) = g(n) + h(n).
+    Guarantees optimal paths with admissible & consistent heuristics.
+    Completeness: Yes.
+    Optimality: Yes.
     """
 
-    def __init__(self, name: str = "A*", heuristic_metric: str = "manhattan"):
+    def __init__(
+        self,
+        name: str = "A*",
+        heuristic_metric: str = "manhattan",
+    ):
         super().__init__(name)
         self.heuristic_metric = heuristic_metric
 
@@ -336,6 +364,7 @@ class AStarAgent(SearchAgent):
                 max_frontier_size=1,
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
+                heuristic_metric=self.heuristic_metric,
             )
 
         counter = 0
@@ -343,7 +372,6 @@ class AStarAgent(SearchAgent):
         h_start = env.heuristic(start, metric=self.heuristic_metric)
         f_start = h_start
 
-        # Heap items: (f_score, counter, state)
         frontier: List[Tuple[float, int, Any]] = [(f_start, counter, start)]
         parent_map: Dict[Any, Optional[Any]] = {start: None}
         closed_set: Set[Any] = set()
@@ -387,7 +415,9 @@ class AStarAgent(SearchAgent):
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         path = (
-            self.reconstruct_path(parent_map, start, goal_state) if found and goal_state is not None else []
+            self.reconstruct_path(parent_map, start, goal_state)
+            if found and goal_state is not None
+            else []
         )
         path_cost = int(g_score.get(goal_state, 0)) if found and goal_state is not None else 0
 
@@ -400,4 +430,5 @@ class AStarAgent(SearchAgent):
             max_frontier_size=max_frontier_size,
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
+            heuristic_metric=self.heuristic_metric,
         )

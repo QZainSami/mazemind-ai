@@ -1,6 +1,7 @@
 """
-MazeMind AI: Intelligent Puzzle Solver, Evolutionary Level Generator & Search Performance Predictor.
-CSL-325 Artificial Intelligence Lab.
+MazeMind AI: Intelligent Puzzle Solver & Search Algorithm Visualizer.
+Course: CSL-325 Artificial Intelligence Lab (Fall 2026).
+Group Members: Samiullah Qureshi, Muhammad Musavir Waseem, Farman Ali.
 """
 
 from .environments import Environment, GridMaze, EightPuzzle
@@ -12,8 +13,6 @@ from .search_agents import (
     GreedyAgent,
     AStarAgent,
 )
-from .genetic_generator import LevelEvolver
-from .ml_predictor import MLPredictor
 
 __all__ = [
     "Environment",
@@ -25,6 +24,4 @@ __all__ = [
     "DFSAgent",
     "GreedyAgent",
     "AStarAgent",
-    "LevelEvolver",
-    "MLPredictor",
 ]

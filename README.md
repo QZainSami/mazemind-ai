@@ -1,104 +1,119 @@
-# MazeMind AI — Intelligent Puzzle Solver, Evolutionary Level Generator & Search Performance Predictor
+# MazeMind AI — Intelligent Puzzle Solver & Search Algorithm Visualizer
 
 [![Course: CSL-325](https://img.shields.io/badge/Course-CSL--325%20AI%20Lab-blue.svg)](https://github.com/QZainSami/mazemind-ai)
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-green.svg)](https://python.org)
-[![Package Manager: uv](https://img.shields.io/badge/Environment-uv-purple.svg)](https://github.com/astral-sh/uv)
+[![Semester: Fall 2026](https://img.shields.io/badge/Semester-Fall%202026%20%7C%20BS%20%28CS%29%205--B-purple.svg)](https://github.com/QZainSami/mazemind-ai)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-green.svg)](https://python.org)
+[![Package Manager: uv](https://img.shields.io/badge/Environment-uv-indigo.svg)](https://github.com/astral-sh/uv)
 [![Platform: Linux | Windows | macOS](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-orange.svg)](https://github.com/QZainSami/mazemind-ai)
 [![Streamlit Cloud Ready](https://img.shields.io/badge/Deployment-Streamlit%20Cloud-red.svg)](https://share.streamlit.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## 1. Executive Summary & Hard Constraints Adherence
+## 1. Project Overview & Team Profile
 
-**MazeMind AI** is a unified artificial intelligence laboratory platform integrating classical state-space search, procedural level evolution via genetic algorithms, exploratory data science, and supervised machine learning inference into an interactive multi-tab application.
+* **Course:** CSL-325 Artificial Intelligence Lab (Fall 2026)
+* **Class:** BS (CS) 5 - B
+* **Course Instructor:** Sir Shahid
 
-### Strict Academic Constraints:
-* **Zero Pre-Trained Models / External APIs:** All search solvers (BFS, DFS, Greedy, A*), evolutionary operators (tournament selection, single-point crossover, bit-flip mutation), simulation pipelines, and supervised ML models (Decision Tree & Linear Regression) are implemented and trained from scratch in pure Python without black-box APIs.
-* **100% Cloud-Deployable:** No external hardware dependencies; ready for one-click deployment on **Streamlit Community Cloud** (`share.streamlit.io`).
-* **Cross-Platform Compatibility:** Runs natively across **Linux** (Ubuntu, Debian, Fedora, Arch, WSL), **Windows**, and **macOS**.
-* **Deterministic `uv` Packaging:** Dependency management and isolated virtual environments strictly enforced via `uv` (`pyproject.toml` and `uv.lock`), with a frozen `requirements.txt` exported for cloud runtime compatibility.
+### Team Members & Project Roles
+| S# | Student Name | Registration No. | Email | Project Contributions |
+|:---:|:---|:---:|:---|:---|
+| **1** | **Samiullah Qureshi** | `02-134242-111` | qsamiullah90@gmail.com | System architecture, OOP design, informed search algorithms (Greedy Best-First, A*), and Streamlit Cloud deployment. |
+| **2** | **Muhammad Musavir Waseem** | `02-134242-008` | musavirrizvi349@gmail.com | Uninformed search algorithms (BFS, DFS), 8-puzzle state-space logic and solvability validation, and interactive grid UI. |
+| **3** | **Farman Ali** | `02-134241-015` | farmanalichhajro@gmail.com | Search step visualization, performance comparison tables/charts, unit testing, and project documentation. |
 
 ---
 
-## 2. Theoretical Foundations & Mathematical Formulations
+## 2. Executive Summary of Project Proposal
 
-### A. Classical Heuristic Search
-1. **Breadth-First Search (BFS):** Unweighted shortest-path guarantee via FIFO queue:
+**MazeMind AI** is a purely software-based artificial intelligence application designed to solve and analyze grid-based mazes and 8-puzzle problems. Built in Python using object-oriented programming and deployed as both an interactive web application on **Streamlit Community Cloud** and a high-performance **native desktop Canvas GUI**, the system implements uninformed search algorithms (**Breadth-First Search** and **Depth-First Search**) and informed heuristic search algorithms (**Greedy Best-First Search** and **A\* Search**) completely from scratch without relying on pre-trained models or external APIs.
+
+Users can interactively design custom maze layouts, adjust obstacle density, or generate randomized 8-puzzle boards, and observe how each search algorithm explores states step-by-step. The application visually compares explored nodes, frontier growth, path length, and execution time to demonstrate the behavior and trade-offs of classical AI search techniques.
+
+---
+
+## 3. Scope & Objectives
+
+### Scope (Included vs. Excluded)
+* **Included:**
+  * Object-oriented 2D grid maze and 8-puzzle environments.
+  * Custom Python implementations of BFS, DFS, Greedy Best-First Search, and A* Search (supporting both **Manhattan** and **Euclidean** heuristics).
+  * Interactive grid editor and 8-puzzle randomizer with mathematical solvability checking (Inversion Parity Theorem).
+  * Animated step-by-step search visualization with adjustable speed controls.
+  * Side-by-side performance comparison tables and comparative bar charts.
+  * Dual delivery: **Streamlit Web Application** (`app.py`) for cloud hosting and **Native Desktop GUI** (`gui_app.py`) for 60 FPS local canvas animation.
+* **Excluded:**
+  * Physical hardware devices or sensors.
+  * 3D game engines.
+  * Pre-trained machine learning models or external third-party AI APIs.
+
+### Project Objectives
+1. Build a modular, object-oriented Python architecture modeling 2D grid mazes, 8-puzzle boards, and autonomous search agents.
+2. Implement Breadth-First Search (BFS), Depth-First Search (DFS), Greedy Best-First Search, and A* Search from scratch.
+3. Support admissible heuristics (Manhattan distance and Euclidean distance) for informed search and solvability validation for 8-puzzle configurations.
+4. Animate step-by-step node exploration, frontier states, and final solution paths inside an interactive user interface.
+5. Compare algorithm performance across path cost, total nodes expanded, max frontier size, and execution time (ms).
+6. Deploy the complete software application publicly on Streamlit Community Cloud.
+
+---
+
+## 4. Theoretical Foundations & Mathematical Formulations
+
+### A. Classical Search Algorithms
+1. **Breadth-First Search (BFS):** Explores shallowest unexpanded nodes first using a FIFO queue (`collections.deque`). Guarantees optimal (shortest) path cost for uniform step costs:
    $$g(n) = \text{depth}(n)$$
-2. **Depth-First Search (DFS):** Memory-bounded graph exploration using an explicit LIFO stack with cycle prevention.
-3. **Greedy Best-First Search:** Heuristic-driven search prioritizing nodes with minimal estimated distance to goal:
+2. **Depth-First Search (DFS):** Explores deepest unexpanded nodes first using an explicit LIFO stack with strict cycle prevention. Memory-efficient ($O(b \cdot m)$ space).
+3. **Greedy Best-First Search:** Evaluates nodes solely by heuristic estimate to goal:
    $$f(n) = h(n)$$
-4. **A\* Search:** Optimal heuristic search balancing path cost and admissible future estimates:
+4. **A\* Search:** Combines historical cost $g(n)$ and heuristic estimate $h(n)$ to guarantee path optimality when $h(n)$ is admissible:
    $$f(n) = g(n) + h(n)$$
-   * **Admissibility & Consistency:** Using the Manhattan distance metric $h(n) = |r_n - r_{\text{goal}}| + |c_n - c_{\text{goal}}|$ guarantees $h(n) \le h^*(n)$ on orthogonal grid graphs.
 
-### B. 8-Puzzle Solvability & Inversion Parity
-For a $3 \times 3$ grid (odd width $W = 3$), blank tile swaps preserve the parity of the non-blank tile permutation. A state is solvable if and only if its inversion count parity matches that of the goal state:
+### B. Admissible Heuristics
+* **Manhattan Distance ($L_1$ Norm):** Represents distance on a 4-directional grid without obstacles:
+  $$h_{\text{Manhattan}}(n) = |r_n - r_{\text{goal}}| + |c_n - c_{\text{goal}}|$$
+* **Euclidean Distance ($L_2$ Norm):** Straight-line Euclidean distance:
+  $$h_{\text{Euclidean}}(n) = \sqrt{(r_n - r_{\text{goal}})^2 + (c_n - c_{\text{goal}})^2}$$
+* **Admissibility & Dominance:** Since diagonal moves are disallowed, $h_{\text{Manhattan}}(n) \ge h_{\text{Euclidean}}(n)$ everywhere. Manhattan distance dominates Euclidean distance and expands fewer or equal nodes in A*.
 
+### C. 8-Puzzle Solvability (Inversion Parity Theorem)
+An inversion occurs when a tile $S_i > S_j$ for indices $i < j$ (ignoring the blank tile $0$):
 $$\mathrm{Inv}(S) = \sum_{1 \le i < j \le 8} \mathbb{I}[S_i > S_j \land S_i \ne 0 \land S_j \ne 0]$$
 
+On a $3 \times 3$ board (odd width $W = 3$), horizontal tile slides preserve the linear order of tiles ($\Delta \mathrm{Inv} = 0$), while vertical slides swap a tile across two other tiles ($\Delta \mathrm{Inv} \in \{-2, 0, +2\}$). Therefore, inversion parity is an invariant:
 $$\mathrm{Solvable}(S, G) \iff \mathrm{Inv}(S) \equiv \mathrm{Inv}(G) \pmod 2$$
-
-### C. Procedural Evolutionary Optimization
-The **LevelEvolver** optimizes binary chromosomes of length $R \times C$ to match a target difficulty:
-* **Chromosome:** $C \in \{0, 1\}^{R \cdot C}$, with $C_0 = 0$ (Start) and $C_{R \cdot C - 1} = 0$ (Goal).
-* **Solvability Penalty:** If unsolvable by A*, assign heavy gradient penalty based on minimum Manhattan distance to goal:
-  $$\mathrm{Fitness}_{\mathrm{unsolvable}} = -1000 - 10 \cdot \min_{v \in \mathrm{visited}} d_{\mathrm{Manhattan}}(v, \mathrm{Goal})$$
-* **Fitness of Solvable Mazes:**
-  $$\mathrm{Fitness} = 100 - 2 \cdot |L_{\mathrm{actual}} - L_{\mathrm{target}}| + 0.5 \cdot (\text{dead ends})$$
-* **Operators:** Tournament selection ($k = 3$), single-point crossover ($p_c = 0.8$), bit-flip mutation ($p_m = 0.05$), and elitism ($e = 2$).
-
-### D. Supervised Learning Pipeline
-* **Model 1: Decision Tree Classifier:** Predicts `recommended_algo` (`A*`, `Greedy`, or `BFS`) using information gain entropy criterion:
-  $$H(S) = -\sum_{i=1}^C p_i \log_2(p_i), \quad \text{max depth} = 5$$
-* **Model 2: Linear Regression:** Predicts continuous `astar_path_cost` directly from geometric and topological features:
-  $$\hat{y} = \beta_0 + \sum_{j=1}^m \beta_j X_j$$
 
 ---
 
-## 3. Repository Architecture
+## 5. Repository Directory Structure
 
 ```text
 mazemind-ai/
-├── pyproject.toml                  # uv project metadata and dependencies
+├── pyproject.toml                  # uv project configuration and dependencies
 ├── uv.lock                         # Deterministic uv lockfile
-├── requirements.txt                # Exported via `uv export` for submission/cloud
-├── README.md                       # Setup instructions, architecture overview, and live URL
+├── requirements.txt                # Exported via uv export for Streamlit Cloud
+├── README.md                       # Complete documentation, proposal details, and guides
 ├── LICENSE                         # MIT License (Sami, 2026)
 ├── app.py                          # Streamlit web application with live animated solving
 ├── gui_app.py                      # Standalone native desktop Canvas GUI (60 FPS)
-├── data/
-│   └── maze_benchmarks.csv         # Generated dataset (1,500 simulated maze runs)
-├── models/
-│   ├── decision_tree.pkl           # Trained DecisionTreeClassifier artifact
-│   ├── linear_regression.pkl       # Trained LinearRegression artifact
-│   └── model_metrics.json          # Saved evaluation scores (Accuracy, R2, MSE, RMSE)
-├── scripts/
-│   ├── generate_dataset.py         # Automated simulation script to populate maze_benchmarks.csv
-│   └── train_models.py             # Trains & evaluates Decision Tree + Linear Regression models
 ├── src/
 │   └── mazemind/
-│       ├── __init__.py
+│       ├── __init__.py             # Public module exports
 │       ├── environments.py         # OOP classes: Environment, GridMaze, EightPuzzle
 │       ├── search_agents.py        # OOP classes: SearchAgent, BFSAgent, DFSAgent, GreedyAgent, AStarAgent
-│       ├── genetic_generator.py    # OOP class: LevelEvolver (Genetic Algorithm maze generator)
-│       ├── ml_predictor.py         # OOP class: MLPredictor (loads .pkl models for live inference)
-│       └── visualizer.py           # Matplotlib figure builders (Headless Agg backend)
+│       └── visualizer.py           # SearchVisualizer (grid states, puzzle tiles, comparison charts)
 └── tests/
-    ├── test_search.py              # Unit tests verifying optimality of A*/BFS and 8-puzzle solvability
-    └── test_ml.py                  # Unit tests verifying dataset schema and model inference shapes
+    └── test_search.py              # Unit tests for BFS, DFS, Greedy, A*, heuristics, and parity
 ```
 
 ---
 
-## 4. Local Setup & Execution Guide
+## 6. Local Setup & Execution Guide
 
 ### 🐧 Linux (Ubuntu, Debian, Fedora, Arch, WSL)
 
-#### Step 1: Install System Dependencies
-Install Python 3.12+ and Tkinter (required for the desktop GUI):
-
+#### 1. Install System Prerequisites
+Install Python 3.12 and Tkinter (for the desktop GUI):
 * **Ubuntu / Debian / WSL:**
   ```bash
   sudo apt update
@@ -113,13 +128,13 @@ Install Python 3.12+ and Tkinter (required for the desktop GUI):
   sudo pacman -S python python-pip tk curl git
   ```
 
-#### Step 2: Install `uv` Package Manager
+#### 2. Install `uv` Package Manager
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.cargo/env  # or restart your terminal
+source $HOME/.cargo/env  # reload environment
 ```
 
-#### Step 3: Clone & Sync
+#### 3. Clone & Sync Environment
 ```bash
 git clone https://github.com/QZainSami/mazemind-ai.git
 cd mazemind-ai
@@ -128,49 +143,46 @@ cd mazemind-ai
 uv sync
 ```
 
-#### Step 4: Run Test Suite
+#### 4. Run Unit Test Suite
 ```bash
 uv run pytest
 ```
 
-#### Step 5: Launch the Applications
-* **Option A — Interactive Streamlit Web App (Recommended for Browser & Cloud):**
+#### 5. Launch the Applications
+* **Launch Interactive Web App (Streamlit):**
   ```bash
   uv run streamlit run app.py
   ```
   Open your browser at `http://localhost:8501`.
 
-* **Option B — Native Desktop Canvas GUI (60 FPS Smooth Animator):**
+* **Launch Native Desktop GUI (Tkinter Canvas Animator):**
   ```bash
   uv run python gui_app.py
   ```
-  *(Requires an active desktop window session. If using WSL2, ensure WSLg or an X-server like VcXsrv is running).*
 
 ---
 
 ### 🪟 Windows (PowerShell / Command Prompt)
 
-#### Step 1: Install `uv`
+#### 1. Install `uv`
 In PowerShell:
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-# Alternatively via winget:
-# winget install astral-sh.uv
 ```
 
-#### Step 2: Clone & Sync
+#### 2. Clone & Sync
 ```powershell
 git clone https://github.com/QZainSami/mazemind-ai.git
 cd mazemind-ai
 uv sync
 ```
 
-#### Step 3: Run Tests
+#### 3. Run Unit Tests
 ```powershell
 uv run pytest
 ```
 
-#### Step 4: Launch Applications
+#### 4. Launch Applications
 * **Streamlit Web App:**
   ```powershell
   uv run streamlit run app.py
@@ -182,27 +194,18 @@ uv run pytest
 
 ---
 
-## 5. Streamlit Community Cloud Deployment
+## 7. Streamlit Community Cloud Deployment
 
-To deploy this project online with zero configuration:
+To host this project online on [Streamlit Community Cloud](https://share.streamlit.io):
 
-1. Push your repository to GitHub:
+1. Commit and push your code to GitHub:
    ```bash
    git add .
-   git commit -m "feat: complete MazeMind AI architecture"
+   git commit -m "feat: align MazeMind AI to official proposal"
    git push -u origin main
    ```
-2. Navigate to [share.streamlit.io](https://share.streamlit.io).
-3. Connect your GitHub account and select `QZainSami/mazemind-ai`.
-4. Set **Main file path** to: `app.py`.
-5. Click **Deploy!** — Streamlit Cloud detects `requirements.txt` and starts your app in seconds.
-
----
-
-## 6. Evaluation Metrics Summary
-
-From `models/model_metrics.json`:
-* **Dataset Size:** 1,500 solvable mazes (1,200 train / 300 test)
-* **Decision Tree Accuracy:** `69.33%` (`criterion="entropy"`, `max_depth=5`)
-* **Linear Regression $R^2$ Score:** `0.9993`
-* **Linear Regression RMSE:** `0.1680` steps
+2. Navigate to [share.streamlit.io](https://share.streamlit.io) and log in with your GitHub account.
+3. Click **Create app** > **Deploy a public app from GitHub**.
+4. Set Repository: `QZainSami/mazemind-ai`.
+5. Set Main file path: `app.py`.
+6. Click **Deploy!** — Streamlit Cloud automatically detects `requirements.txt` and deploys your application within seconds.
