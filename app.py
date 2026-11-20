@@ -202,7 +202,6 @@ with st.sidebar:
         """
         <div style="font-size:0.82rem; color:#6272a4;">
             🎨 Styled with official <b><a href="https://draculatheme.com/spec" target="_blank" style="color:#bd93f9; text-decoration:none;">Dracula Theme</a></b>.<br>
-            ⚡ Pure Python Search (Zero External AI APIs).
         </div>
         """,
         unsafe_allow_html=True,
@@ -822,7 +821,6 @@ elif nav_selection == "3. Algorithm Theory & Complexity":
         """
         <div class="header-bar">
             <span class="header-title">Search Algorithm Theory & Complexity</span>
-            <span class="header-badge">Mathematical Proofs & Space-Time Analysis</span>
         </div>
         """,
         unsafe_allow_html=True,
