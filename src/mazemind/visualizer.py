@@ -1,9 +1,9 @@
 """
-SearchVisualizer for MazeMind AI.
+SearchVisualizer for MazeMind AI with Dracula Theme (https://draculatheme.com/spec).
 Builds Matplotlib figures for:
 - 2D Grid Maze exploration states, frontiers, and optimal paths
-- 8-Puzzle tile board states and transitions
-- Multi-metric algorithm comparison bar charts (Nodes Expanded, Path Cost, Execution Time)
+- 8-Puzzle tile board states, animations, and tile-move highlights
+- Multi-metric algorithm comparison bar charts
 Course: CSL-325 Artificial Intelligence Lab (Fall 2026).
 """
 
@@ -17,6 +17,23 @@ import numpy as np
 from .environments import GridMaze, EightPuzzle
 from .search_agents import SearchResult
 
+# Official Dracula Theme Palette (https://draculatheme.com/spec)
+DRACULA = {
+    "bg": "#282a36",
+    "current_line": "#44475a",
+    "selection": "#44475a",
+    "fg": "#f8f8f2",
+    "comment": "#6272a4",
+    "cyan": "#8be9fd",
+    "green": "#50fa7b",
+    "orange": "#ffb86c",
+    "pink": "#ff79c6",
+    "purple": "#bd93f9",
+    "red": "#ff5555",
+    "yellow": "#f1fa8c",
+    "dark_wall": "#191a21",
+}
+
 
 def plot_maze(
     maze: GridMaze,
@@ -26,10 +43,11 @@ def plot_maze(
     figsize: Tuple[int, int] = (7, 7),
 ) -> plt.Figure:
     """
-    Renders a 2D GridMaze with optional exploration overlay and final path.
+    Renders a 2D GridMaze in Dracula theme with exploration overlay and path.
     - If `step` is provided, shows exploration up to that step.
     """
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=figsize, facecolor=DRACULA["bg"])
+    ax.set_facecolor(DRACULA["bg"])
     rows, cols = maze.rows, maze.cols
 
     # Display grid: 0 = Open, 1 = Wall, 0.4 = Explored, 0.8 = Path
@@ -56,8 +74,11 @@ def plot_maze(
             if (r, c) != maze.start and (r, c) != maze.goal:
                 display_grid[r, c] = 0.8  # Solution path tint
 
-    # Colormap: Open (white), Explored (cyan), Path (amber/gold), Wall (charcoal)
-    cmap = plt.cm.colors.ListedColormap(["#FFFFFF", "#B2EBF2", "#FFB74D", "#263238"])
+    # Dracula colormap:
+    # 0 = Open (#44475a), 0.4 = Explored (#bd93f9 Purple), 0.8 = Path (#f1fa8c Yellow), 1.0 = Wall (#191a21 Dark)
+    cmap = plt.cm.colors.ListedColormap(
+        [DRACULA["current_line"], DRACULA["purple"], DRACULA["yellow"], DRACULA["dark_wall"]]
+    )
     bounds = [-0.1, 0.2, 0.6, 0.9, 1.1]
     norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
 
@@ -66,18 +87,18 @@ def plot_maze(
     # Grid boundaries
     ax.set_xticks(np.arange(-0.5, cols, 1), minor=True)
     ax.set_yticks(np.arange(-0.5, rows, 1), minor=True)
-    ax.grid(which="minor", color="#CFD8DC", linestyle="-", linewidth=0.8)
+    ax.grid(which="minor", color=DRACULA["comment"], linestyle="-", linewidth=0.6, alpha=0.5)
     ax.tick_params(which="minor", size=0)
 
-    # Start marker (Green S)
+    # Start marker (Dracula Green)
     sr, sc = maze.start
     ax.add_patch(
         patches.Rectangle(
             (sc - 0.45, sr - 0.45),
             0.9,
             0.9,
-            facecolor="#4CAF50",
-            edgecolor="#2E7D32",
+            facecolor=DRACULA["green"],
+            edgecolor=DRACULA["fg"],
             linewidth=2,
             zorder=4,
         )
@@ -86,7 +107,7 @@ def plot_maze(
         sc,
         sr,
         "S",
-        color="white",
+        color=DRACULA["bg"],
         ha="center",
         va="center",
         fontweight="bold",
@@ -94,15 +115,15 @@ def plot_maze(
         zorder=5,
     )
 
-    # Goal marker (Red G)
+    # Goal marker (Dracula Red)
     gr, gc = maze.goal
     ax.add_patch(
         patches.Rectangle(
             (gc - 0.45, gr - 0.45),
             0.9,
             0.9,
-            facecolor="#E53935",
-            edgecolor="#B71C1C",
+            facecolor=DRACULA["red"],
+            edgecolor=DRACULA["fg"],
             linewidth=2,
             zorder=4,
         )
@@ -111,7 +132,7 @@ def plot_maze(
         gc,
         gr,
         "G",
-        color="white",
+        color=DRACULA["bg"],
         ha="center",
         va="center",
         fontweight="bold",
@@ -119,15 +140,19 @@ def plot_maze(
         zorder=5,
     )
 
-    # Path polyline trace for extra visual clarity
+    # Path polyline trace in Dracula Orange
     if show_path and len(result.path) > 1:
         pr = [p[0] for p in result.path]
         pc = [p[1] for p in result.path]
-        ax.plot(pc, pr, color="#E65100", linewidth=2.5, linestyle="-", zorder=6)
+        ax.plot(pc, pr, color=DRACULA["orange"], linewidth=2.8, linestyle="-", zorder=6)
 
     ax.set_xticks(range(0, cols, max(1, cols // 5)))
     ax.set_yticks(range(0, rows, max(1, rows // 5)))
-    ax.set_title(title, fontsize=12, fontweight="bold", pad=10)
+    ax.tick_params(colors=DRACULA["fg"], labelsize=9)
+    for spine in ax.spines.values():
+        spine.set_color(DRACULA["comment"])
+
+    ax.set_title(title, fontsize=12, fontweight="bold", pad=10, color=DRACULA["cyan"])
     plt.tight_layout()
     return fig
 
@@ -135,10 +160,16 @@ def plot_maze(
 def plot_eight_puzzle(
     state: Tuple[int, ...],
     title: str = "8-Puzzle Sliding Tiles",
-    figsize: Tuple[int, int] = (4.5, 4.5),
+    moved_tile: Optional[int] = None,
+    move_action: Optional[str] = None,
+    figsize: Tuple[int, int] = (4.8, 4.8),
 ) -> plt.Figure:
-    """Renders a clean 3x3 sliding tile board with tile numbers."""
-    fig, ax = plt.subplots(figsize=figsize)
+    """
+    Renders a 3x3 sliding tile board in Dracula theme.
+    - Highlights `moved_tile` in Dracula Pink/Cyan so the user can easily see which tile moved.
+    """
+    fig, ax = plt.subplots(figsize=figsize, facecolor=DRACULA["bg"])
+    ax.set_facecolor(DRACULA["bg"])
     ax.set_xlim(0, 3)
     ax.set_ylim(0, 3)
     ax.invert_yaxis()
@@ -147,49 +178,60 @@ def plot_eight_puzzle(
     for idx, val in enumerate(state):
         r, c = divmod(idx, 3)
         if val == 0:
-            # Blank tile
+            # Blank tile slot
             rect = patches.Rectangle(
-                (c + 0.05, r + 0.05),
-                0.9,
-                0.9,
-                facecolor="#ECEFF1",
-                edgecolor="#B0BEC5",
+                (c + 0.06, r + 0.06),
+                0.88,
+                0.88,
+                facecolor=DRACULA["dark_wall"],
+                edgecolor=DRACULA["comment"],
                 linewidth=2,
                 linestyle="--",
             )
             ax.add_patch(rect)
         else:
+            # Determine tile styling
+            is_moved = (moved_tile is not None and val == moved_tile)
+            face_color = DRACULA["pink"] if is_moved else DRACULA["current_line"]
+            edge_color = DRACULA["yellow"] if is_moved else DRACULA["purple"]
+            text_color = DRACULA["bg"] if is_moved else DRACULA["cyan"]
+            line_width = 3.0 if is_moved else 2.0
+
             rect = patches.Rectangle(
-                (c + 0.05, r + 0.05),
-                0.9,
-                0.9,
-                facecolor="#1976D2",
-                edgecolor="#0D47A1",
-                linewidth=2,
+                (c + 0.06, r + 0.06),
+                0.88,
+                0.88,
+                facecolor=face_color,
+                edgecolor=edge_color,
+                linewidth=line_width,
             )
             ax.add_patch(rect)
             ax.text(
                 c + 0.5,
                 r + 0.5,
                 str(val),
-                color="white",
+                color=text_color,
                 ha="center",
                 va="center",
-                fontsize=20,
+                fontsize=22,
                 fontweight="bold",
             )
 
-    ax.set_title(title, fontsize=12, fontweight="bold", pad=8)
+    full_title = title
+    if move_action:
+        full_title += f"\n{move_action}"
+
+    ax.set_title(full_title, fontsize=11, fontweight="bold", pad=8, color=DRACULA["green"])
     plt.tight_layout()
     return fig
 
 
 def plot_comparison_bars(
     results: Dict[str, SearchResult],
-    figsize: Tuple[int, int] = (10, 4),
+    figsize: Tuple[int, int] = (10, 3.8),
 ) -> plt.Figure:
     """
-    Renders side-by-side comparison bar charts displaying:
+    Renders side-by-side comparison bar charts in Dracula theme:
     - Nodes Expanded
     - Path Cost (Steps)
     - Execution Time (ms)
@@ -199,37 +241,39 @@ def plot_comparison_bars(
     costs = [results[n].path_cost if results[n].found else 0 for n in names]
     times = [results[n].execution_time_ms for n in names]
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=figsize)
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=figsize, facecolor=DRACULA["bg"])
 
-    colors = ["#42A5F5", "#AB47BC", "#FFA726", "#66BB6A"]
-    bar_colors = [colors[i % len(colors)] for i in range(len(names))]
+    palette = [DRACULA["cyan"], DRACULA["green"], DRACULA["orange"], DRACULA["purple"], DRACULA["pink"]]
+    bar_colors = [palette[i % len(palette)] for i in range(len(names))]
 
-    # 1. Nodes Expanded
-    bars1 = ax1.bar(names, nodes, color=bar_colors)
-    ax1.set_title("Nodes Expanded (Lower is Better)", fontsize=10, fontweight="bold")
-    ax1.set_ylabel("Count")
-    ax1.tick_params(axis="x", rotation=25)
-    for b in bars1:
-        yval = b.get_height()
-        ax1.text(b.get_x() + b.get_width() / 2, yval, str(yval), ha="center", va="bottom", fontsize=8)
+    for ax, data, title, ylabel in [
+        (ax1, nodes, "Nodes Expanded\n(Lower is Better)", "Count"),
+        (ax2, costs, "Path Cost / Moves\n(Optimality)", "Steps / Moves"),
+        (ax3, times, "Execution Time\n(Efficiency)", "ms"),
+    ]:
+        ax.set_facecolor(DRACULA["current_line"])
+        bars = ax.bar(names, data, color=bar_colors, edgecolor=DRACULA["fg"], linewidth=0.8)
+        ax.set_title(title, fontsize=10, fontweight="bold", color=DRACULA["cyan"])
+        ax.set_ylabel(ylabel, color=DRACULA["fg"], fontsize=9)
+        ax.tick_params(axis="x", rotation=25, colors=DRACULA["fg"], labelsize=8)
+        ax.tick_params(axis="y", colors=DRACULA["fg"], labelsize=8)
+        ax.grid(axis="y", color=DRACULA["comment"], linestyle="--", alpha=0.3)
+        for spine in ax.spines.values():
+            spine.set_color(DRACULA["comment"])
 
-    # 2. Path Cost
-    bars2 = ax2.bar(names, costs, color=bar_colors)
-    ax2.set_title("Path Cost / Steps (Optimality)", fontsize=10, fontweight="bold")
-    ax2.set_ylabel("Steps")
-    ax2.tick_params(axis="x", rotation=25)
-    for b in bars2:
-        yval = b.get_height()
-        ax2.text(b.get_x() + b.get_width() / 2, yval, str(yval), ha="center", va="bottom", fontsize=8)
-
-    # 3. Execution Time
-    bars3 = ax3.bar(names, times, color=bar_colors)
-    ax3.set_title("Execution Time (ms)", fontsize=10, fontweight="bold")
-    ax3.set_ylabel("Milliseconds")
-    ax3.tick_params(axis="x", rotation=25)
-    for b in bars3:
-        yval = b.get_height()
-        ax3.text(b.get_x() + b.get_width() / 2, yval, f"{yval:.1f}", ha="center", va="bottom", fontsize=8)
+        for b in bars:
+            yval = b.get_height()
+            label_text = f"{yval:.1f}" if isinstance(yval, float) else str(yval)
+            ax.text(
+                b.get_x() + b.get_width() / 2,
+                yval,
+                label_text,
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color=DRACULA["fg"],
+                fontweight="bold",
+            )
 
     plt.tight_layout()
     return fig

@@ -7,6 +7,8 @@ Group Members:
 - Samiullah Qureshi (02-134242-111) — System architecture, OOP design, Greedy Best-First, A*, Cloud deployment
 - Muhammad Musavir Waseem (02-134242-008) — BFS, DFS, 8-puzzle state-space logic, solvability validation, grid UI
 - Farman Ali (02-134241-015) — Step visualization, comparison charts/tables, unit testing, documentation
+
+Theme: Official Dracula Theme (https://draculatheme.com/spec)
 """
 
 import os
@@ -35,13 +37,14 @@ from mazemind.visualizer import (
     plot_maze,
     plot_eight_puzzle,
     plot_comparison_bars,
+    DRACULA,
 )
 
 # ---------------------------------------------------------
-# Page Configuration & Global Styling
+# Page Configuration & Dracula Global Styling
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="MazeMind AI — Puzzle Solver & Search Visualizer",
+    page_title="MazeMind AI — Dracula Search Visualizer",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -50,33 +53,66 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    /* Dracula Theme Specification: https://draculatheme.com/spec */
+    .stApp {
+        background-color: #282a36;
+        color: #f8f8f2;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #21222c;
+        border-right: 1px solid #44475a;
+    }
     .main-header {
-        font-size: 2.2rem;
+        font-size: 2.3rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #1E88E5, #7E57C2);
+        background: linear-gradient(90deg, #bd93f9, #ff79c6, #8be9fd);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.2rem;
     }
     .sub-header {
         font-size: 1.05rem;
-        color: #546E7A;
+        color: #8be9fd;
         margin-bottom: 1.2rem;
     }
     .metric-card {
-        background-color: #F8F9FA;
+        background-color: #44475a;
         border-radius: 8px;
         padding: 12px 16px;
-        border-left: 4px solid #1E88E5;
-        margin-bottom: 10px;
+        border-left: 5px solid #bd93f9;
+        color: #f8f8f2;
+        margin-bottom: 12px;
     }
     .team-badge {
-        background: linear-gradient(135deg, #E3F2FD, #EDE7F6);
-        border: 1px solid #BBDEFB;
+        background: #44475a;
+        border: 1px solid #6272a4;
         border-radius: 8px;
         padding: 10px 14px;
         margin-bottom: 14px;
+        color: #f8f8f2;
         font-size: 0.88rem;
+    }
+    .action-badge {
+        background-color: #44475a;
+        border: 1px solid #ff79c6;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-weight: 600;
+        color: #ff79c6;
+        display: inline-block;
+        margin-bottom: 8px;
+    }
+    .stButton>button {
+        background-color: #bd93f9;
+        color: #282a36;
+        font-weight: 700;
+        border: none;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    .stButton>button:hover {
+        background-color: #ff79c6;
+        color: #282a36;
     }
     </style>
     """,
@@ -100,6 +136,9 @@ if "maze_grid" not in st.session_state:
 if "search_results" not in st.session_state:
     st.session_state.search_results = {}
 
+if "maze_anim_step" not in st.session_state:
+    st.session_state.maze_anim_step = None
+
 if "puzzle_state" not in st.session_state:
     st.session_state.puzzle_state = (1, 2, 3, 4, 0, 6, 7, 5, 8)
 
@@ -109,12 +148,15 @@ if "puzzle_goal" not in st.session_state:
 if "puzzle_results" not in st.session_state:
     st.session_state.puzzle_results = {}
 
+if "puzzle_anim_step" not in st.session_state:
+    st.session_state.puzzle_anim_step = 0
+
 # ---------------------------------------------------------
 # Sidebar: Navigation & Project Profile
 # ---------------------------------------------------------
 with st.sidebar:
     st.markdown("### 🧠 MazeMind AI")
-    st.caption("Intelligent Puzzle Solver & Search Algorithm Visualizer")
+    st.caption("Dracula Theme Search & Puzzle Visualizer")
     st.markdown("---")
 
     nav_selection = st.radio(
@@ -132,8 +174,8 @@ with st.sidebar:
     st.markdown(
         """
         <div class="team-badge">
-            <b>Course:</b> CSL-325 AI Lab (Fall 2026)<br>
-            <b>Instructor:</b> Sir Shahid<br><br>
+            <span style="color:#bd93f9; font-weight:bold;">Course:</span> CSL-325 AI Lab (Fall 2026)<br>
+            <span style="color:#50fa7b; font-weight:bold;">Instructor:</span> Sir Shahid<br><br>
             <b>1. Samiullah Qureshi</b> (02-134242-111)<br>
             <b>2. Muhammad Musavir Waseem</b> (02-134242-008)<br>
             <b>3. Farman Ali</b> (02-134241-015)
@@ -142,12 +184,19 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown("#### 📌 Key Principles")
-    st.caption(
-        "• **Zero Pre-Trained Models**: Solvers built strictly from scratch in pure Python using OOP.\n"
-        "• **Uninformed Search**: BFS & DFS with cycle prevention.\n"
-        "• **Informed Search**: Greedy & A* with Manhattan & Euclidean heuristics.\n"
-        "• **Inversion Parity Theorem** guaranteed for 8-Puzzle solvability."
+    st.markdown("#### 🎨 Dracula Theme Palette")
+    st.markdown(
+        """
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+            <span style="background:#50fa7b; width:18px; height:18px; border-radius:3px;" title="Green (Start)"></span>
+            <span style="background:#ff5555; width:18px; height:18px; border-radius:3px;" title="Red (Goal)"></span>
+            <span style="background:#bd93f9; width:18px; height:18px; border-radius:3px;" title="Purple (Explored)"></span>
+            <span style="background:#f1fa8c; width:18px; height:18px; border-radius:3px;" title="Yellow (Optimal Path)"></span>
+            <span style="background:#ff79c6; width:18px; height:18px; border-radius:3px;" title="Pink (Moved Tile)"></span>
+            <span style="background:#8be9fd; width:18px; height:18px; border-radius:3px;" title="Cyan (Text/Accents)"></span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 
@@ -157,7 +206,7 @@ with st.sidebar:
 if nav_selection == "1. 2D Grid Maze Solver":
     st.markdown('<div class="main-header">2D Grid Maze Solver & Visualizer</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">Design custom mazes, compare Uninformed (BFS, DFS) vs. Informed (Greedy, A*) search, and watch step-by-step exploration animations.</div>',
+        '<div class="sub-header">Design custom mazes, compare Uninformed (BFS, DFS) vs. Informed (Greedy, A*) search, and control live step-by-step animations.</div>',
         unsafe_allow_html=True,
     )
 
@@ -192,6 +241,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
         if st.button("Generate / Reset Maze", use_container_width=True):
             st.session_state.grid_size = dim
             st.session_state.search_results = {}
+            st.session_state.maze_anim_step = None
 
             if preset == "Open Room (Zero Walls)":
                 new_grid = np.zeros((dim, dim), dtype=np.int32)
@@ -228,10 +278,10 @@ if nav_selection == "1. 2D Grid Maze Solver":
         st.markdown(
             f"""
             <div class="metric-card">
-                <b>Maze Statistics:</b><br>
+                <span style="color:#bd93f9; font-weight:bold;">Maze Statistics:</span><br>
                 • Dimensions: <b>{stats['rows']} × {stats['cols']}</b> ({stats['total_cells']} total cells)<br>
                 • Wall Density: <b>{stats['wall_density']*100:.1f}%</b> ({stats['wall_cells']} walls, {stats['open_cells']} open)<br>
-                • Distance to Goal: Manhattan = <b>{stats['manhattan_dist']}</b>, Euclidean = <b>{stats['euclidean_dist']:.2f}</b><br>
+                • Goal Distance: Manhattan = <b>{stats['manhattan_dist']}</b>, Euclidean = <b>{stats['euclidean_dist']:.2f}</b><br>
                 • Dead-End Terminals: <b>{stats['dead_end_count']}</b>
             </div>
             """,
@@ -280,6 +330,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
             for ag in agents:
                 results[ag.name] = ag.solve(curr_maze)
             st.session_state.search_results = results
+            st.session_state.maze_anim_step = None
 
     with col_view:
         st.markdown("#### 🎨 Live Maze Visualization & Animation")
@@ -296,33 +347,46 @@ if nav_selection == "1. 2D Grid Maze Solver":
             if active_res.found:
                 step_count = len(active_res.exploration_history)
 
-                # Animation Speed and Playback Controls
-                anim_c1, anim_c2 = st.columns([1.2, 1])
-                with anim_c1:
-                    anim_speed = st.select_slider(
-                        "⚡ Animation Speed:",
+                # --- Animation Controls Bar: Play / Pause / Reset & Speed ---
+                st.markdown("##### ⏯️ Animation Playback Controls")
+                anim_ctrl1, anim_ctrl2, anim_ctrl3, anim_ctrl4 = st.columns([1, 1, 1, 1.3])
+
+                with anim_ctrl1:
+                    play_maze = st.button("▶️ Play", use_container_width=True, key="btn_play_maze")
+                with anim_ctrl2:
+                    pause_maze = st.button("⏸️ Pause", use_container_width=True, key="btn_pause_maze")
+                with anim_ctrl3:
+                    reset_maze = st.button("⏮️ Reset", use_container_width=True, key="btn_reset_maze")
+                with anim_ctrl4:
+                    maze_speed_label = st.select_slider(
+                        "Speed:",
                         options=["0.25x (Slow-Mo)", "0.5x", "1.0x (Normal)", "2.0x (Fast)", "5.0x (Turbo)"],
                         value="1.0x (Normal)",
+                        key="slider_maze_speed",
                     )
-                with anim_c2:
-                    st.write("")
-                    st.write("")
-                    play_anim = st.button("▶️ Play Animation", type="secondary", use_container_width=True)
+
+                if reset_maze:
+                    st.session_state.maze_anim_step = 1
 
                 plot_slot = st.empty()
                 progress_slot = st.empty()
 
-                if play_anim:
-                    speed_map = {
-                        "0.25x (Slow-Mo)": (0.12, 1),
-                        "0.5x": (0.05, 1),
-                        "1.0x (Normal)": (0.02, 2),
-                        "2.0x (Fast)": (0.01, 4),
-                        "5.0x (Turbo)": (0.005, 8),
-                    }
-                    delay, stride = speed_map[anim_speed]
+                speed_map = {
+                    "0.25x (Slow-Mo)": (0.12, 1),
+                    "0.5x": (0.05, 1),
+                    "1.0x (Normal)": (0.02, 2),
+                    "2.0x (Fast)": (0.01, 4),
+                    "5.0x (Turbo)": (0.004, 8),
+                }
+                delay, stride = speed_map[maze_speed_label]
 
-                    for s in range(1, step_count + 1, stride):
+                if play_maze:
+                    start_s = st.session_state.maze_anim_step or 1
+                    if start_s >= step_count:
+                        start_s = 1
+
+                    for s in range(start_s, step_count + 1, stride):
+                        st.session_state.maze_anim_step = s
                         fig = plot_maze(
                             curr_maze,
                             result=active_res,
@@ -332,10 +396,11 @@ if nav_selection == "1. 2D Grid Maze Solver":
                         plot_slot.pyplot(fig)
                         plt.close(fig)
                         progress_slot.progress(
-                            s / step_count, text=f"Exploring state space: {s}/{step_count} nodes"
+                            s / step_count, text=f"Exploring nodes: {s}/{step_count}"
                         )
                         time.sleep(delay)
 
+                    st.session_state.maze_anim_step = step_count
                     fig = plot_maze(
                         curr_maze,
                         result=active_res,
@@ -346,13 +411,17 @@ if nav_selection == "1. 2D Grid Maze Solver":
                     plt.close(fig)
                     progress_slot.empty()
                 else:
+                    cur_val = st.session_state.maze_anim_step or step_count
+                    cur_val = max(1, min(step_count, cur_val))
                     step = st.slider(
-                        "Manual Step-by-Step Scrubber:",
+                        "Manual Frame Scrubber:",
                         min_value=1,
                         max_value=max(1, step_count),
-                        value=step_count,
-                        help="Slide to manually inspect the wave of visited nodes.",
+                        value=cur_val,
+                        key="maze_manual_slider",
+                        help="Slide to manually inspect visited nodes at any step.",
                     )
+                    st.session_state.maze_anim_step = step
                     fig = plot_maze(
                         curr_maze,
                         result=active_res,
@@ -411,7 +480,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
 elif nav_selection == "2. 8-Puzzle State-Space Solver":
     st.markdown('<div class="main-header">8-Puzzle State-Space Solver & Visualizer</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="sub-header">Solve 3×3 sliding tile puzzles using A* Search and Greedy Best-First Search with mathematical solvability validation.</div>',
+        '<div class="sub-header">Watch numbered tiles slide 1 by 1 into the blank space with Play, Pause, Reset, and Speed controls in Dracula theme.</div>',
         unsafe_allow_html=True,
     )
 
@@ -464,6 +533,7 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
 
             st.session_state.puzzle_goal = selected_goal
             st.session_state.puzzle_results = {}
+            st.session_state.puzzle_anim_step = 0
             st.rerun()
 
         # Inversion parity calculation
@@ -474,13 +544,12 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
         st.markdown(
             f"""
             <div class="metric-card">
-                <b>Solvability Verification (Inversion Parity Theorem):</b><br>
+                <span style="color:#bd93f9; font-weight:bold;">Solvability Verification (Inversion Parity):</span><br>
                 • Start Inversions: <b>{inv_count}</b> ({'Even' if inv_count % 2 == 0 else 'Odd'})<br>
                 • Goal Inversions: <b>{goal_inv}</b> ({'Even' if goal_inv % 2 == 0 else 'Odd'})<br>
                 • Solvability Status: <b>{'🟢 Solvable' if is_solv else '🔴 Unsolvable'}</b><br>
-                <span style="font-size:0.8rem; color:#607D8B;">
-                Theorem: On odd grid width (W=3), horizontal/vertical blank swaps preserve inversion parity.
-                A board is solvable if and only if Inv(S) ≡ Inv(G) (mod 2).
+                <span style="font-size:0.8rem; color:#8be9fd;">
+                Theorem: Inv(S) ≡ Inv(G) (mod 2) guarantees whether a solution path exists.
                 </span>
             </div>
             """,
@@ -537,9 +606,10 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
                 for ag in agents:
                     p_results[ag.name] = ag.solve(env_puzzle)
             st.session_state.puzzle_results = p_results
+            st.session_state.puzzle_anim_step = 0
 
     with p_col2:
-        st.markdown("#### 🎯 Board State Visualization & Tile Animation")
+        st.markdown("#### 🎯 1-by-1 Animated Tile Sliding")
 
         if st.session_state.puzzle_results:
             p_names = list(st.session_state.puzzle_results.keys())
@@ -551,45 +621,115 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
                     f"Solution Found by {active_p_name}! Moves: **{res_p.path_cost}** | Nodes: **{res_p.nodes_expanded}** | Time: **{res_p.execution_time_ms:.2f} ms**"
                 )
 
-                p_anim_c1, p_anim_c2 = st.columns([1.2, 1])
-                with p_anim_c1:
-                    puzzle_speed = st.select_slider(
-                        "⚡ Move Speed:",
-                        options=["Slow (0.6s)", "Normal (0.3s)", "Fast (0.15s)"],
-                        value="Normal (0.3s)",
+                # Precompute tile movements for each step
+                path_moves: List[Tuple[Optional[int], str]] = [(None, "Start Board")]
+                for idx in range(1, len(res_p.path)):
+                    prev_b = res_p.path[idx - 1]
+                    curr_b = res_p.path[idx]
+                    prev_zero = prev_b.index(0)
+                    curr_zero = curr_b.index(0)
+                    moved_tile = prev_b[curr_zero]
+
+                    r_prev, c_prev = divmod(curr_zero, 3)
+                    r_curr, c_curr = divmod(prev_zero, 3)
+                    dr, dc = r_curr - r_prev, c_curr - c_prev
+
+                    direction = "UP" if dr == -1 else ("DOWN" if dr == 1 else ("LEFT" if dc == -1 else "RIGHT"))
+                    path_moves.append((moved_tile, f"Step {idx}: Tile {moved_tile} slid {direction} into blank slot"))
+
+                # Play / Pause / Reset & Speed Controls
+                st.markdown("##### ⏯️ Tile Animation Controls")
+                p_c1, p_c2, p_c3, p_c4 = st.columns([1, 1, 1, 1.3])
+
+                with p_c1:
+                    play_puzzle = st.button("▶️ Play", use_container_width=True, key="btn_play_puzzle")
+                with p_c2:
+                    pause_puzzle = st.button("⏸️ Pause", use_container_width=True, key="btn_pause_puzzle")
+                with p_c3:
+                    reset_puzzle = st.button("⏮️ Reset", use_container_width=True, key="btn_reset_puzzle")
+                with p_c4:
+                    puzzle_speed_label = st.select_slider(
+                        "Speed:",
+                        options=["Slow (0.8s)", "Normal (0.4s)", "Fast (0.18s)", "Turbo (0.05s)"],
+                        value="Normal (0.4s)",
+                        key="slider_puzzle_speed",
                     )
-                with p_anim_c2:
-                    st.write("")
-                    st.write("")
-                    play_puzzle_anim = st.button("▶️ Animate Tile Moves", type="secondary", use_container_width=True)
+
+                if reset_puzzle:
+                    st.session_state.puzzle_anim_step = 0
 
                 p_slot = st.empty()
+                info_slot = st.empty()
 
-                if play_puzzle_anim:
-                    p_delay = {"Slow (0.6s)": 0.6, "Normal (0.3s)": 0.3, "Fast (0.15s)": 0.15}[puzzle_speed]
-                    for idx, step_board in enumerate(res_p.path):
+                p_speed_map = {
+                    "Slow (0.8s)": 0.8,
+                    "Normal (0.4s)": 0.4,
+                    "Fast (0.18s)": 0.18,
+                    "Turbo (0.05s)": 0.05,
+                }
+                p_delay = p_speed_map[puzzle_speed_label]
+
+                if play_puzzle:
+                    start_step = st.session_state.puzzle_anim_step or 0
+                    if start_step >= len(res_p.path) - 1:
+                        start_step = 0
+
+                    for s in range(start_step, len(res_p.path)):
+                        st.session_state.puzzle_anim_step = s
+                        step_board = res_p.path[s]
+                        moved_t, desc = path_moves[s]
+
+                        info_slot.markdown(
+                            f'<div class="action-badge">📍 {desc}</div>',
+                            unsafe_allow_html=True,
+                        )
                         fig = plot_eight_puzzle(
                             step_board,
-                            title=f"Step {idx}/{len(res_p.path) - 1} ({'Goal Reached!' if idx == len(res_p.path) - 1 else 'Sliding Tiles...'})",
+                            title=f"Step {s}/{len(res_p.path) - 1} ({'Goal Reached!' if s == len(res_p.path) - 1 else 'In Transit'})",
+                            moved_tile=moved_t,
+                            move_action=desc,
                         )
                         p_slot.pyplot(fig)
                         plt.close(fig)
                         time.sleep(p_delay)
+
+                    st.session_state.puzzle_anim_step = len(res_p.path) - 1
                 else:
+                    curr_step = st.session_state.puzzle_anim_step or 0
+                    curr_step = max(0, min(len(res_p.path) - 1, curr_step))
+
                     step_idx = st.slider(
                         "Manual Step Scrubber:",
-                        0,
-                        len(res_p.path) - 1,
-                        0,
+                        min_value=0,
+                        max_value=len(res_p.path) - 1,
+                        value=curr_step,
+                        key="puzzle_manual_slider",
                         help="Slide to inspect tile transitions step-by-step.",
                     )
+                    st.session_state.puzzle_anim_step = step_idx
                     curr_board = res_p.path[step_idx]
+                    moved_t, desc = path_moves[step_idx]
+
+                    info_slot.markdown(
+                        f'<div class="action-badge">📍 {desc}</div>',
+                        unsafe_allow_html=True,
+                    )
                     fig = plot_eight_puzzle(
                         curr_board,
-                        title=f"Step {step_idx} of {len(res_p.path) - 1} ({'Goal Reached!' if step_idx == len(res_p.path) - 1 else 'In Transit'})",
+                        title=f"Step {step_idx}/{len(res_p.path) - 1} ({'Goal Reached!' if step_idx == len(res_p.path) - 1 else 'In Transit'})",
+                        moved_tile=moved_t,
+                        move_action=desc,
                     )
                     p_slot.pyplot(fig)
                     plt.close(fig)
+
+                # Expandable Move History
+                with st.expander("📜 Full Tile Move Sequence"):
+                    move_table = [
+                        {"Step": idx, "Action": path_moves[idx][1]}
+                        for idx in range(1, len(path_moves))
+                    ]
+                    st.dataframe(pd.DataFrame(move_table), use_container_width=True, hide_index=True)
             else:
                 st.error("No path found to goal.")
                 fig = plot_eight_puzzle(st.session_state.puzzle_state, title="Initial State (Unsolvable)")
