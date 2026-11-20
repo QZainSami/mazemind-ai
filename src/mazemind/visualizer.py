@@ -40,7 +40,7 @@ def plot_maze(
     result: Optional[SearchResult] = None,
     step: Optional[int] = None,
     title: str = "2D Grid Maze",
-    figsize: Tuple[int, int] = (7, 7),
+    figsize: Tuple[float, float] = (4.4, 4.4),
 ) -> plt.Figure:
     """
     Renders a 2D GridMaze in Dracula theme with exploration overlay and path.
@@ -152,8 +152,8 @@ def plot_maze(
     for spine in ax.spines.values():
         spine.set_color(DRACULA["comment"])
 
-    ax.set_title(title, fontsize=12, fontweight="bold", pad=10, color=DRACULA["cyan"])
-    plt.tight_layout()
+    ax.set_title(title, fontsize=11, fontweight="bold", pad=6, color=DRACULA["cyan"])
+    plt.tight_layout(pad=0.4)
     return fig
 
 
@@ -162,7 +162,7 @@ def plot_eight_puzzle(
     title: str = "8-Puzzle Sliding Tiles",
     moved_tile: Optional[int] = None,
     move_action: Optional[str] = None,
-    figsize: Tuple[int, int] = (4.8, 4.8),
+    figsize: Tuple[float, float] = (3.8, 3.8),
 ) -> plt.Figure:
     """
     Renders a 3x3 sliding tile board in Dracula theme.
@@ -221,8 +221,8 @@ def plot_eight_puzzle(
     if move_action:
         full_title += f"\n{move_action}"
 
-    ax.set_title(full_title, fontsize=11, fontweight="bold", pad=8, color=DRACULA["green"])
-    plt.tight_layout()
+    ax.set_title(full_title, fontsize=10, fontweight="bold", pad=6, color=DRACULA["green"])
+    plt.tight_layout(pad=0.4)
     return fig
 
 
