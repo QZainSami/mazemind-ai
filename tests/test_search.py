@@ -14,6 +14,7 @@ import numpy as np
 
 from mazemind.environments import GridMaze, EightPuzzle
 from mazemind.search_agents import BFSAgent, DFSAgent, GreedyAgent, AStarAgent
+from mazemind.web_animator import build_maze_animator_html, build_puzzle_animator_html
 
 
 def test_grid_maze_empty_optimality():
@@ -152,3 +153,52 @@ def test_maze_and_puzzle_stats():
     p_stats = puzzle.get_stats()
     assert p_stats["is_solvable"] is True
     assert p_stats["inversion_count"] % 2 == 0
+
+
+def test_guaranteed_solvable_maze_at_max_size_and_density():
+    """Verify generated mazes stay solvable even at max grid size (35x35) and high obstacle density (0.50)."""
+    astar = AStarAgent(heuristic_metric="manhattan")
+    for preset in ["Random Obstacles", "Open Room (No Walls)", "Center Wall Barrier", "Snake Labyrinth"]:
+        for trial in range(5):
+            maze = GridMaze.generate_solvable(
+                rows=35,
+                cols=35,
+                density=0.50,
+                preset=preset,
+                seed=100 + trial,
+            )
+            res = astar.solve(maze)
+            assert res.found is True, f"Preset {preset} trial {trial} produced unsolvable 35x35 maze"
+            assert res.path[0] == maze.start
+            assert res.path[-1] == maze.goal
+
+
+def test_web_animator_html_embeds_precomputed_data():
+    """Verify web animator HTML renders cleanly with precomputed search results."""
+    maze = GridMaze.generate_solvable(rows=10, cols=10, density=0.35, seed=7)
+    res = AStarAgent(heuristic_metric="manhattan").solve(maze)
+    html_maze = build_maze_animator_html(
+        maze=maze,
+        results={"A* (Manhattan)": res},
+        autoplay=True,
+        instant=False,
+        run_id=1,
+    )
+    assert "mazeCanvas" in html_maze
+    assert "A* (Manhattan)" in html_maze
+    assert '"found": true' in html_maze
+    assert '"runId": 1' in html_maze
+
+    puzzle = EightPuzzle(start_state=(1, 2, 3, 4, 0, 6, 7, 5, 8))
+    p_res = AStarAgent(heuristic_metric="manhattan").solve(puzzle)
+    html_puzzle = build_puzzle_animator_html(
+        start_state=puzzle.start_state,
+        goal_state=puzzle.goal_state,
+        results={"A* (Manhattan)": p_res},
+        autoplay=True,
+        instant=False,
+        run_id=2,
+    )
+    assert "puzzleCanvas" in html_puzzle
+    assert "Tile 5 slid" in html_puzzle
+    assert '"runId": 2' in html_puzzle

@@ -5,6 +5,7 @@ Designed for CSL-325 Artificial Intelligence Lab (Fall 2026).
 """
 
 from abc import ABC, abstractmethod
+from collections import deque
 import math
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
@@ -171,6 +172,144 @@ class GridMaze(Environment):
             start=self.start,
             goal=self.goal,
         )
+
+    @staticmethod
+    def _is_reachable(
+        grid: np.ndarray,
+        start: Tuple[int, int],
+        goal: Tuple[int, int],
+    ) -> bool:
+        """Checks if goal is reachable from start via open (0) cells."""
+        rows, cols = grid.shape
+        if grid[start] != 0 or grid[goal] != 0:
+            return False
+        if start == goal:
+            return True
+
+        queue: deque[Tuple[int, int]] = deque([start])
+        seen = {start}
+        while queue:
+            r, c = queue.popleft()
+            for dr, dc in GridMaze.DIRECTIONS:
+                nr, nc = r + dr, c + dc
+                if (
+                    0 <= nr < rows
+                    and 0 <= nc < cols
+                    and grid[nr, nc] == 0
+                    and (nr, nc) not in seen
+                ):
+                    if (nr, nc) == goal:
+                        return True
+                    seen.add((nr, nc))
+                    queue.append((nr, nc))
+        return False
+
+    @staticmethod
+    def _carve_minimum_path_01_bfs(
+        grid: np.ndarray,
+        start: Tuple[int, int],
+        goal: Tuple[int, int],
+        rng: np.random.Generator,
+    ) -> np.ndarray:
+        """
+        Carves a guaranteed path from start to goal by clearing only the
+        minimum number of blocking walls via randomized 0-1 BFS.
+        Preserves maze density and winding corridor topology even at high densities.
+        """
+        rows, cols = grid.shape
+        carved = grid.copy()
+        carved[start] = 0
+        carved[goal] = 0
+
+        inf = rows * cols + 1
+        dist = np.full((rows, cols), inf, dtype=np.int32)
+        parent: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}
+        dist[start] = 0
+        dq: deque[Tuple[int, int, int]] = deque([(0, start[0], start[1])])
+        dirs = list(GridMaze.DIRECTIONS)
+
+        while dq:
+            d, r, c = dq.popleft()
+            if d > dist[r, c]:
+                continue
+            if (r, c) == goal:
+                break
+
+            rng.shuffle(dirs)
+            for dr, dc in dirs:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < rows and 0 <= nc < cols:
+                    w = int(carved[nr, nc])
+                    nd = d + w
+                    if nd < dist[nr, nc]:
+                        dist[nr, nc] = nd
+                        parent[(nr, nc)] = (r, c)
+                        if w == 0:
+                            dq.appendleft((nd, nr, nc))
+                        else:
+                            dq.append((nd, nr, nc))
+
+        curr: Optional[Tuple[int, int]] = goal
+        while curr is not None:
+            carved[curr] = 0
+            curr = parent.get(curr)
+
+        return carved
+
+    @classmethod
+    def generate_solvable(
+        cls,
+        rows: int,
+        cols: int,
+        density: float = 0.22,
+        preset: str = "Random Obstacles",
+        seed: Optional[int] = None,
+        start: Optional[Tuple[int, int]] = None,
+        goal: Optional[Tuple[int, int]] = None,
+    ) -> "GridMaze":
+        """
+        Generates a 2D GridMaze matching the requested preset and density that
+        is mathematically guaranteed to have at least one valid path from start to goal.
+        """
+        rng = np.random.default_rng(seed)
+        s = start if start is not None else (0, 0)
+        g = goal if goal is not None else (rows - 1, cols - 1)
+        clamped_density = max(0.0, min(0.95, float(density)))
+
+        preset_lower = preset.lower()
+        if "open" in preset_lower:
+            grid = np.zeros((rows, cols), dtype=np.int32)
+        elif "center" in preset_lower:
+            grid = np.zeros((rows, cols), dtype=np.int32)
+            mid = cols // 2
+            grid[0 : max(1, rows - 2), mid] = 1
+        elif "snake" in preset_lower:
+            grid = np.zeros((rows, cols), dtype=np.int32)
+            for r in range(2, rows - 1, 3):
+                if (r // 3) % 2 == 0:
+                    grid[r, 1:] = 1
+                else:
+                    grid[r, :-1] = 1
+        else:
+            # Random obstacles: fast rejection sampling first, fallback to 0-1 BFS carving
+            grid = None
+            for _ in range(12):
+                candidate = (rng.random((rows, cols)) < clamped_density).astype(np.int32)
+                candidate[s] = 0
+                candidate[g] = 0
+                if cls._is_reachable(candidate, s, g):
+                    grid = candidate
+                    break
+            if grid is None:
+                base = (rng.random((rows, cols)) < clamped_density).astype(np.int32)
+                grid = cls._carve_minimum_path_01_bfs(base, s, g, rng)
+
+        grid[s] = 0
+        grid[g] = 0
+        if not cls._is_reachable(grid, s, g):
+            grid = cls._carve_minimum_path_01_bfs(grid, s, g, rng)
+
+        return cls(grid=grid, start=s, goal=g)
 
 
 class EightPuzzle(Environment):

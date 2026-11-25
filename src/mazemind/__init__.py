@@ -13,6 +13,10 @@ from .search_agents import (
     GreedyAgent,
     AStarAgent,
 )
+from .web_animator import (
+    build_maze_animator_html,
+    build_puzzle_animator_html,
+)
 
 __all__ = [
     "Environment",
@@ -24,4 +28,6 @@ __all__ = [
     "DFSAgent",
     "GreedyAgent",
     "AStarAgent",
+    "build_maze_animator_html",
+    "build_puzzle_animator_html",
 ]
