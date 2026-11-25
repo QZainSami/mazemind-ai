@@ -84,8 +84,10 @@ class MazeDesktopApp:
         self.maze_result: Optional[SearchResult] = None
 
         # ---------------- 8-Puzzle State ----------------
-        self.puzzle_state = (1, 2, 3, 4, 0, 6, 7, 5, 8)
         self.puzzle_goal = EightPuzzle.STANDARD_GOAL
+        self.puzzle_state = EightPuzzle.generate_random_solvable(
+            goal_state=self.puzzle_goal, scramble_moves=18, seed=7
+        )
         self.puzzle_animating = False
         self.puzzle_paused = False
         self.puzzle_after_id: Optional[str] = None
@@ -591,8 +593,8 @@ class MazeDesktopApp:
         viewport.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         tk.Label(sidebar, text="Choose Initial Board Preset:", font=("Segoe UI", 9, "bold"), bg=DRACULA["current_line"], fg=DRACULA["cyan"]).pack(anchor="w", pady=(2, 2))
-        self.puzzle_preset_var = tk.StringVar(value="3-Moves Easy")
-        ttk.Combobox(sidebar, textvariable=self.puzzle_preset_var, values=["1-Move Trivial Solution", "3-Moves Easy", "6-Moves Medium", "10-Moves Challenging", "Scramble Random Solvable"], state="readonly").pack(fill=tk.X, pady=(0, 6))
+        self.puzzle_preset_var = tk.StringVar(value="Random Solvable Board")
+        ttk.Combobox(sidebar, textvariable=self.puzzle_preset_var, values=["Random Solvable Board", "1-Move Trivial Solution", "3-Moves Easy", "6-Moves Medium", "10-Moves Challenging"], state="readonly").pack(fill=tk.X, pady=(0, 6))
 
         tk.Button(sidebar, text="Apply / Scramble Board", bg=DRACULA["comment"], fg="white", font=("Segoe UI", 9, "bold"), relief=tk.FLAT, command=self.apply_puzzle_preset).pack(fill=tk.X, pady=(0, 8))
 
@@ -685,13 +687,9 @@ class MazeDesktopApp:
         elif pre == "10-Moves Challenging":
             self.puzzle_state = (1, 3, 6, 4, 2, 5, 7, 0, 8)
         else:
-            while True:
-                cand = list(range(9))
-                random.shuffle(cand)
-                cand_tuple = tuple(cand)
-                if EightPuzzle.is_solvable(cand_tuple, self.puzzle_goal):
-                    self.puzzle_state = cand_tuple
-                    break
+            self.puzzle_state = EightPuzzle.generate_random_solvable(
+                goal_state=self.puzzle_goal, scramble_moves=18
+            )
 
         self.puzzle_result = None
         self.puzzle_path.clear()

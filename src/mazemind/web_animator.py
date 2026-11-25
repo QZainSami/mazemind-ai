@@ -82,7 +82,6 @@ def build_maze_animator_html(
     color: #f8f8f2;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
-    user-select: none;
   }}
   .wrap {{
     display: flex;
@@ -179,7 +178,7 @@ def build_maze_animator_html(
     width: 100%;
     padding: 0 2px;
   }}
-  #scrubber {{ flex: 1; height: 6px; }}
+  #scrubber {{ flex: 1; height: 8px; cursor: pointer; }}
   #stepCounter {{ font-size: 11.5px; color: #f8f8f2; min-width: 78px; text-align: right; font-variant-numeric: tabular-nums; }}
   canvas {{
     background: #282a36;
@@ -607,11 +606,14 @@ def build_maze_animator_html(
       }}
     }});
 
-    scrubber.addEventListener("input", () => {{
+    const handleScrub = () => {{
+      // Read target step BEFORE stopping playback, otherwise renderFrame() resets scrubber.value!
+      const targetStep = parseInt(scrubber.value, 10);
+      currentStep = isNaN(targetStep) ? currentStep : targetStep;
       stopPlayback();
-      currentStep = parseInt(scrubber.value, 10);
-      renderFrame();
-    }});
+    }};
+    scrubber.addEventListener("input", handleScrub);
+    scrubber.addEventListener("change", handleScrub);
 
     if (DATA.instant && hasResults) {{
       currentStep = getTotalFrames();
@@ -725,7 +727,6 @@ def build_puzzle_animator_html(
     color: #f8f8f2;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow: hidden;
-    user-select: none;
   }}
   .wrap {{
     display: flex;
@@ -816,7 +817,7 @@ def build_puzzle_animator_html(
     width: 100%;
     padding: 0 2px;
   }}
-  #scrubber {{ flex: 1; height: 6px; }}
+  #scrubber {{ flex: 1; height: 8px; cursor: pointer; }}
   #stepCounter {{ font-size: 11.5px; color: #f8f8f2; min-width: 68px; text-align: right; font-variant-numeric: tabular-nums; }}
   canvas {{
     background: #282a36;
@@ -1172,11 +1173,14 @@ def build_puzzle_animator_html(
       }}
     }});
 
-    scrubber.addEventListener("input", () => {{
+    const handlePuzzleScrub = () => {{
+      // Read target step BEFORE stopping playback, otherwise renderBoard() resets scrubber.value!
+      const targetStep = parseInt(scrubber.value, 10);
+      currentStep = isNaN(targetStep) ? currentStep : targetStep;
       stopPlayback();
-      currentStep = parseInt(scrubber.value, 10);
-      renderBoard(1.0);
-    }});
+    }};
+    scrubber.addEventListener("input", handlePuzzleScrub);
+    scrubber.addEventListener("change", handlePuzzleScrub);
 
     if (DATA.instant && hasResults) {{
       currentStep = getMaxStep();

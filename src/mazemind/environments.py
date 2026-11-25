@@ -371,6 +371,45 @@ class EightPuzzle(Environment):
         target = goal_state if goal_state is not None else cls.STANDARD_GOAL
         return (cls.count_inversions(state) % 2) == (cls.count_inversions(target) % 2)
 
+    @classmethod
+    def generate_random_solvable(
+        cls,
+        goal_state: Optional[Tuple[int, ...]] = None,
+        scramble_moves: int = 18,
+        seed: Optional[int] = None,
+    ) -> Tuple[int, ...]:
+        """
+        Generates a guaranteed-solvable randomized 8-puzzle state by applying
+        non-backtracking legal tile slides from the goal configuration.
+        """
+        rng = np.random.default_rng(seed)
+        target = list(goal_state if goal_state is not None else cls.STANDARD_GOAL)
+        state = list(target)
+        prev_zero = -1
+
+        for _ in range(max(1, scramble_moves)):
+            z = state.index(0)
+            r, c = divmod(z, 3)
+            candidates = []
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < 3 and 0 <= nc < 3:
+                    idx = nr * 3 + nc
+                    if idx != prev_zero:
+                        candidates.append(idx)
+            pick = int(rng.choice(candidates))
+            state[z], state[pick] = state[pick], state[z]
+            prev_zero = z
+
+        # Ensure scrambled state differs from goal
+        if state == target:
+            z = state.index(0)
+            r, c = divmod(z, 3)
+            swap_idx = ((r + 1) % 3) * 3 + c if r < 2 else (r - 1) * 3 + c
+            state[z], state[swap_idx] = state[swap_idx], state[z]
+
+        return tuple(state)
+
     def get_neighbors(self, state: Tuple[int, ...]) -> List[Tuple[Tuple[int, ...], int]]:
         """
         Generates valid successor states by sliding tiles into the blank position (0).

@@ -151,11 +151,21 @@ if "maze_instant_mode" not in st.session_state:
 if "maze_solve_seq" not in st.session_state:
     st.session_state.maze_solve_seq = 0
 
-if "puzzle_state" not in st.session_state:
-    st.session_state.puzzle_state = (1, 2, 3, 4, 0, 6, 7, 5, 8)
+if "puzzle_preset" not in st.session_state:
+    st.session_state.puzzle_preset = "Random Solvable Board"
+
+if "puzzle_goal_label" not in st.session_state:
+    st.session_state.puzzle_goal_label = "Standard: (1..8, 0)"
 
 if "puzzle_goal" not in st.session_state:
     st.session_state.puzzle_goal = EightPuzzle.STANDARD_GOAL
+
+if "puzzle_state" not in st.session_state:
+    st.session_state.puzzle_state = EightPuzzle.generate_random_solvable(
+        goal_state=st.session_state.puzzle_goal,
+        scramble_moves=18,
+        seed=7,
+    )
 
 if "puzzle_results" not in st.session_state:
     st.session_state.puzzle_results = {}
@@ -314,9 +324,15 @@ if nav_selection == "1. 2D Grid Maze Solver":
                 ],
             )
         with c_h:
+            is_uninformed_maze = solver_selection in (
+                "Breadth-First Search (BFS)",
+                "Depth-First Search (DFS)",
+            )
             heuristic_choice = st.selectbox(
                 "Heuristic Metric:",
                 ["Manhattan (L1)", "Euclidean (L2)"],
+                disabled=is_uninformed_maze,
+                help="Used by informed solvers (A* and Greedy Best-First).",
             )
             metric_key = "manhattan" if "Manhattan" in heuristic_choice else "euclidean"
 
@@ -416,25 +432,34 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
     with p_col1:
         st.markdown("##### ⚙️ Initial Board Setup")
 
+        puzzle_presets = [
+            "Random Solvable Board",
+            "1-Move Trivial Solution",
+            "3-Moves Easy",
+            "6-Moves Medium",
+            "10-Moves Challenging",
+        ]
+        goal_options = [
+            "Standard: (1..8, 0)",
+            "Spiral: (1,2,3,8,0,4,7,6,5)",
+        ]
+
         p_pre, p_goal = st.columns(2)
         with p_pre:
             preset_puzzle = st.selectbox(
                 "Preset Configuration:",
-                [
-                    "1-Move Trivial Solution",
-                    "3-Moves Easy",
-                    "6-Moves Medium",
-                    "10-Moves Challenging",
-                    "Random Solvable Board",
-                ],
+                puzzle_presets,
+                index=puzzle_presets.index(st.session_state.puzzle_preset)
+                if st.session_state.puzzle_preset in puzzle_presets
+                else 0,
             )
         with p_goal:
             goal_choice = st.selectbox(
                 "Target Goal:",
-                [
-                    "Standard: (1..8, 0)",
-                    "Spiral: (1,2,3,8,0,4,7,6,5)",
-                ],
+                goal_options,
+                index=goal_options.index(st.session_state.puzzle_goal_label)
+                if st.session_state.puzzle_goal_label in goal_options
+                else 0,
             )
         selected_goal = (
             EightPuzzle.STANDARD_GOAL
@@ -442,29 +467,46 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
             else EightPuzzle.SPIRAL_GOAL
         )
 
-        if st.button("🎲 Scramble / Apply Board", width="stretch"):
-            if preset_puzzle == "1-Move Trivial Solution":
-                st.session_state.puzzle_state = (1, 2, 3, 4, 5, 6, 7, 0, 8)
-            elif preset_puzzle == "3-Moves Easy":
-                st.session_state.puzzle_state = (1, 2, 3, 4, 0, 6, 7, 5, 8)
-            elif preset_puzzle == "6-Moves Medium":
-                st.session_state.puzzle_state = (1, 2, 3, 0, 4, 6, 7, 5, 8)
-            elif preset_puzzle == "10-Moves Challenging":
-                st.session_state.puzzle_state = (1, 3, 6, 4, 2, 5, 7, 0, 8)
-            else:
-                while True:
-                    cand = list(range(9))
-                    random.shuffle(cand)
-                    cand_tuple = tuple(cand)
-                    if EightPuzzle.is_solvable(cand_tuple, selected_goal):
-                        st.session_state.puzzle_state = cand_tuple
-                        break
+        p_params_changed = (
+            preset_puzzle != st.session_state.puzzle_preset
+            or goal_choice != st.session_state.puzzle_goal_label
+        )
+        scramble_clicked = st.button("🎲 Scramble / Apply Board", width="stretch")
 
+        if p_params_changed or scramble_clicked:
+            st.session_state.puzzle_preset = preset_puzzle
+            st.session_state.puzzle_goal_label = goal_choice
             st.session_state.puzzle_goal = selected_goal
+
+            if preset_puzzle == "Random Solvable Board":
+                st.session_state.puzzle_state = EightPuzzle.generate_random_solvable(
+                    goal_state=selected_goal, scramble_moves=18
+                )
+            elif "Standard" in goal_choice:
+                fixed_presets = {
+                    "1-Move Trivial Solution": (1, 2, 3, 4, 5, 6, 7, 0, 8),
+                    "3-Moves Easy": (1, 2, 3, 4, 0, 6, 7, 5, 8),
+                    "6-Moves Medium": (1, 2, 3, 0, 4, 6, 7, 5, 8),
+                    "10-Moves Challenging": (1, 3, 6, 4, 2, 5, 7, 0, 8),
+                }
+                st.session_state.puzzle_state = fixed_presets[preset_puzzle]
+            else:
+                depth_map = {
+                    "1-Move Trivial Solution": 1,
+                    "3-Moves Easy": 3,
+                    "6-Moves Medium": 6,
+                    "10-Moves Challenging": 10,
+                }
+                st.session_state.puzzle_state = EightPuzzle.generate_random_solvable(
+                    goal_state=selected_goal,
+                    scramble_moves=depth_map[preset_puzzle],
+                )
+
             st.session_state.puzzle_results = {}
             st.session_state.trigger_puzzle_anim = False
             st.session_state.puzzle_instant_mode = False
-            st.rerun()
+            if scramble_clicked:
+                st.rerun()
 
         inv_count = EightPuzzle.count_inversions(st.session_state.puzzle_state)
         goal_inv = EightPuzzle.count_inversions(st.session_state.puzzle_goal)
@@ -495,9 +537,15 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
                 ],
             )
         with p_c_heur:
+            is_uninformed_p = p_solver_choice in (
+                "Breadth-First Search (BFS)",
+                "Depth-First Search (DFS)",
+            )
             p_metric = st.selectbox(
                 "Heuristic:",
                 ["Manhattan", "Euclidean", "Misplaced"],
+                disabled=is_uninformed_p,
+                help="Used by informed solvers (A* and Greedy Best-First).",
             )
             metric_key = p_metric.lower()
 
@@ -565,23 +613,81 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
         st.iframe(puzzle_html, width="stretch", height=495)
 
     if st.session_state.puzzle_results:
-        first_name = next(iter(st.session_state.puzzle_results.keys()))
-        first_res = st.session_state.puzzle_results[first_name]
-        if first_res.found and len(first_res.path) > 1:
+        solved_names = [n for n, r in st.session_state.puzzle_results.items() if r.found]
+        if solved_names:
             with st.expander("📜 View Step-by-Step Move Log", expanded=False):
-                move_rows = []
-                for idx in range(1, len(first_res.path)):
-                    prev_b = first_res.path[idx - 1]
-                    curr_b = first_res.path[idx]
-                    prev_zero = prev_b.index(0)
-                    curr_zero = curr_b.index(0)
-                    moved_t = prev_b[curr_zero]
-                    r0, c0 = divmod(curr_zero, 3)
-                    r1, c1 = divmod(prev_zero, 3)
-                    dr, dc = r1 - r0, c1 - c0
-                    direction = "UP" if dr == -1 else ("DOWN" if dr == 1 else ("LEFT" if dc == -1 else "RIGHT"))
-                    move_rows.append({"Step": idx, "Action": f"Tile {moved_t} slid {direction} into blank slot"})
-                st.dataframe(pd.DataFrame(move_rows), width="stretch", hide_index=True)
+                if len(solved_names) > 1:
+                    log_algo = st.selectbox(
+                        "Show Move Sequence For:",
+                        solved_names,
+                        index=0,
+                        key="puzzle_log_algo_sel",
+                    )
+                else:
+                    log_algo = solved_names[0]
+
+                log_res = st.session_state.puzzle_results[log_algo]
+                total_moves = len(log_res.path) - 1
+                if total_moves == 0:
+                    st.info("Board is already in the goal state (0 moves required).")
+                else:
+                    dir_styles = {
+                        "UP": ("⬆️ UP", "#8be9fd"),
+                        "DOWN": ("⬇️ DOWN", "#ffb86c"),
+                        "LEFT": ("⬅️ LEFT", "#bd93f9"),
+                        "RIGHT": ("➡️ RIGHT", "#f1fa8c"),
+                    }
+                    max_display = 200
+                    show_truncated = total_moves > max_display
+                    step_indices = list(range(1, min(total_moves, max_display) + 1))
+
+                    rows_html = []
+                    for idx in step_indices:
+                        prev_b = log_res.path[idx - 1]
+                        curr_b = log_res.path[idx]
+                        prev_zero = prev_b.index(0)
+                        curr_zero = curr_b.index(0)
+                        moved_t = prev_b[curr_zero]
+                        r0, c0 = divmod(curr_zero, 3)
+                        r1, c1 = divmod(prev_zero, 3)
+                        dr, dc = r1 - r0, c1 - c0
+                        direction = (
+                            "UP"
+                            if dr == -1
+                            else ("DOWN" if dr == 1 else ("LEFT" if dc == -1 else "RIGHT"))
+                        )
+                        dir_lbl, dir_clr = dir_styles[direction]
+                        board_str = " ".join(str(x) if x != 0 else "·" for x in curr_b[0:3]) + " | " + " ".join(str(x) if x != 0 else "·" for x in curr_b[3:6]) + " | " + " ".join(str(x) if x != 0 else "·" for x in curr_b[6:9])
+                        goal_tag = ' <span style="color:#50fa7b; font-weight:700; margin-left:6px;">🎉 Goal</span>' if idx == total_moves else ""
+                        rows_html.append(
+                            f"""
+                            <div style="display:grid; grid-template-columns:56px 78px 92px 1fr 190px; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid #343746; font-size:0.84rem;">
+                                <span style="color:#bd93f9; font-weight:700; font-family:monospace;">#{idx:02d}</span>
+                                <span><span style="background:#ff79c6; color:#282a36; font-weight:800; padding:2px 8px; border-radius:4px;">Tile {moved_t}</span></span>
+                                <span style="color:{dir_clr}; font-weight:700;">{dir_lbl}</span>
+                                <span style="color:#f8f8f2;">({r0},{c0}) → ({r1},{c1}){goal_tag}</span>
+                                <span style="color:#8be9fd; font-family:monospace; font-size:0.78rem; background:#282a36; padding:2px 6px; border-radius:4px; text-align:center;">{board_str}</span>
+                            </div>
+                            """
+                        )
+
+                    trunc_note = (
+                        f'<div style="padding:6px 10px; color:#ffb86c; font-size:0.8rem;">Showing first {max_display} of {total_moves} total moves.</div>'
+                        if show_truncated
+                        else ""
+                    )
+                    log_html = f"""
+                    <div style="border:1px solid #44475a; border-radius:8px; background:#21222c; overflow:hidden; margin-bottom:6px;">
+                        <div style="display:grid; grid-template-columns:56px 78px 92px 1fr 190px; gap:8px; padding:7px 10px; background:#282a36; border-bottom:1px solid #6272a4; font-size:0.78rem; font-weight:700; color:#8be9fd; text-transform:uppercase;">
+                            <span>Step</span><span>Tile</span><span>Direction</span><span>Move Coordinates</span><span style="text-align:center;">Board Snapshot</span>
+                        </div>
+                        <div style="max-height:260px; overflow-y:auto;">
+                            {''.join(rows_html)}
+                            {trunc_note}
+                        </div>
+                    </div>
+                    """
+                    st.markdown(log_html, unsafe_allow_html=True)
 
         if len(st.session_state.puzzle_results) > 1:
             with st.expander("📊 View 8-Puzzle Multi-Algorithm Comparison Table", expanded=False):

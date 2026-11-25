@@ -202,3 +202,19 @@ def test_web_animator_html_embeds_precomputed_data():
     assert "puzzleCanvas" in html_puzzle
     assert "Tile 5 slid" in html_puzzle
     assert '"runId": 2' in html_puzzle
+
+
+def test_eight_puzzle_random_solvable_generator():
+    """Verify EightPuzzle.generate_random_solvable always returns solvable, non-goal boards."""
+    for goal in [EightPuzzle.STANDARD_GOAL, EightPuzzle.SPIRAL_GOAL]:
+        for moves in [1, 6, 18]:
+            state = EightPuzzle.generate_random_solvable(
+                goal_state=goal, scramble_moves=moves, seed=42 + moves
+            )
+            assert state != goal
+            assert EightPuzzle.is_solvable(state, goal) is True
+            res = AStarAgent(heuristic_metric="manhattan").solve(
+                EightPuzzle(start_state=state, goal_state=goal)
+            )
+            assert res.found is True
+            assert res.path_cost <= moves
