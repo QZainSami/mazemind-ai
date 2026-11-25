@@ -657,18 +657,26 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
                             else ("DOWN" if dr == 1 else ("LEFT" if dc == -1 else "RIGHT"))
                         )
                         dir_lbl, dir_clr = dir_styles[direction]
-                        board_str = " ".join(str(x) if x != 0 else "·" for x in curr_b[0:3]) + " | " + " ".join(str(x) if x != 0 else "·" for x in curr_b[3:6]) + " | " + " ".join(str(x) if x != 0 else "·" for x in curr_b[6:9])
-                        goal_tag = ' <span style="color:#50fa7b; font-weight:700; margin-left:6px;">🎉 Goal</span>' if idx == total_moves else ""
+                        board_str = (
+                            " ".join(str(x) if x != 0 else "·" for x in curr_b[0:3])
+                            + " | "
+                            + " ".join(str(x) if x != 0 else "·" for x in curr_b[3:6])
+                            + " | "
+                            + " ".join(str(x) if x != 0 else "·" for x in curr_b[6:9])
+                        )
+                        goal_tag = (
+                            ' <span style="color:#50fa7b; font-weight:700; margin-left:6px;">🎉 Goal</span>'
+                            if idx == total_moves
+                            else ""
+                        )
                         rows_html.append(
-                            f"""
-                            <div style="display:grid; grid-template-columns:56px 78px 92px 1fr 190px; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid #343746; font-size:0.84rem;">
-                                <span style="color:#bd93f9; font-weight:700; font-family:monospace;">#{idx:02d}</span>
-                                <span><span style="background:#ff79c6; color:#282a36; font-weight:800; padding:2px 8px; border-radius:4px;">Tile {moved_t}</span></span>
-                                <span style="color:{dir_clr}; font-weight:700;">{dir_lbl}</span>
-                                <span style="color:#f8f8f2;">({r0},{c0}) → ({r1},{c1}){goal_tag}</span>
-                                <span style="color:#8be9fd; font-family:monospace; font-size:0.78rem; background:#282a36; padding:2px 6px; border-radius:4px; text-align:center;">{board_str}</span>
-                            </div>
-                            """
+                            f'<div style="display:grid; grid-template-columns:56px 78px 92px 1fr 190px; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid #343746; font-size:0.84rem;">'
+                            f'<span style="color:#bd93f9; font-weight:700; font-family:monospace;">#{idx:02d}</span>'
+                            f'<span><span style="background:#ff79c6; color:#282a36; font-weight:800; padding:2px 8px; border-radius:4px;">Tile {moved_t}</span></span>'
+                            f'<span style="color:{dir_clr}; font-weight:700;">{dir_lbl}</span>'
+                            f'<span style="color:#f8f8f2;">({r0},{c0}) → ({r1},{c1}){goal_tag}</span>'
+                            f'<span style="color:#8be9fd; font-family:monospace; font-size:0.78rem; background:#282a36; padding:2px 6px; border-radius:4px; text-align:center;">{board_str}</span>'
+                            f'</div>'
                         )
 
                     trunc_note = (
@@ -676,18 +684,15 @@ elif nav_selection == "2. 8-Puzzle State-Space Solver":
                         if show_truncated
                         else ""
                     )
-                    log_html = f"""
-                    <div style="border:1px solid #44475a; border-radius:8px; background:#21222c; overflow:hidden; margin-bottom:6px;">
-                        <div style="display:grid; grid-template-columns:56px 78px 92px 1fr 190px; gap:8px; padding:7px 10px; background:#282a36; border-bottom:1px solid #6272a4; font-size:0.78rem; font-weight:700; color:#8be9fd; text-transform:uppercase;">
-                            <span>Step</span><span>Tile</span><span>Direction</span><span>Move Coordinates</span><span style="text-align:center;">Board Snapshot</span>
-                        </div>
-                        <div style="max-height:260px; overflow-y:auto;">
-                            {''.join(rows_html)}
-                            {trunc_note}
-                        </div>
-                    </div>
-                    """
-                    st.markdown(log_html, unsafe_allow_html=True)
+                    log_html = (
+                        '<div style="border:1px solid #44475a; border-radius:8px; background:#21222c; overflow:hidden; margin-bottom:6px;">'
+                        '<div style="display:grid; grid-template-columns:56px 78px 92px 1fr 190px; gap:8px; padding:7px 10px; background:#282a36; border-bottom:1px solid #6272a4; font-size:0.78rem; font-weight:700; color:#8be9fd; text-transform:uppercase;">'
+                        '<span>Step</span><span>Tile</span><span>Direction</span><span>Move Coordinates</span><span style="text-align:center;">Board Snapshot</span>'
+                        '</div>'
+                        f'<div style="max-height:260px; overflow-y:auto;">{"".join(rows_html)}{trunc_note}</div>'
+                        '</div>'
+                    )
+                    st.html(log_html)
 
         if len(st.session_state.puzzle_results) > 1:
             with st.expander("📊 View 8-Puzzle Multi-Algorithm Comparison Table", expanded=False):
