@@ -10,12 +10,19 @@ from .search_agents import (
     SearchAgent,
     BFSAgent,
     DFSAgent,
+    UCSAgent,
     GreedyAgent,
     AStarAgent,
+    BidirectionalBFSAgent,
+    BidirectionalAStarAgent,
 )
 from .web_animator import (
     build_maze_animator_html,
     build_puzzle_animator_html,
+    build_maze_payload,
+    build_puzzle_payload,
+    get_maze_component,
+    get_puzzle_component,
 )
 
 __all__ = [
@@ -26,8 +33,11 @@ __all__ = [
     "SearchAgent",
     "BFSAgent",
     "DFSAgent",
+    "UCSAgent",
     "GreedyAgent",
     "AStarAgent",
+    "BidirectionalBFSAgent",
+    "BidirectionalAStarAgent",
     "build_maze_animator_html",
     "build_puzzle_animator_html",
 ]

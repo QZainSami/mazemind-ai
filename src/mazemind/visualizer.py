@@ -50,8 +50,12 @@ def plot_maze(
     ax.set_facecolor(DRACULA["bg"])
     rows, cols = maze.rows, maze.cols
 
-    # Display grid: 0 = Open, 1 = Wall, 0.4 = Explored, 0.8 = Path
+    # Display grid:
+    # 0 = Open, 0.2 = Mud(4), 0.3 = Water(8), 0.45 = Explored, 0.8 = Path, 1.0 = Wall
     display_grid = np.zeros((rows, cols), dtype=np.float32)
+    if hasattr(maze, "weights"):
+        display_grid[maze.weights >= 4] = 0.2
+        display_grid[maze.weights >= 8] = 0.3
     display_grid[maze.grid == 1] = 1.0
 
     if result and result.exploration_history:
@@ -62,7 +66,7 @@ def plot_maze(
         )
         for r, c in history_slice:
             if (r, c) != maze.start and (r, c) != maze.goal and maze.grid[r, c] == 0:
-                display_grid[r, c] = 0.4  # Explored tint
+                display_grid[r, c] = 0.45  # Explored tint
 
     show_path = (
         result
@@ -74,12 +78,17 @@ def plot_maze(
             if (r, c) != maze.start and (r, c) != maze.goal:
                 display_grid[r, c] = 0.8  # Solution path tint
 
-    # Dracula colormap:
-    # 0 = Open (#44475a), 0.4 = Explored (#bd93f9 Purple), 0.8 = Path (#f1fa8c Yellow), 1.0 = Wall (#191a21 Dark)
     cmap = plt.cm.colors.ListedColormap(
-        [DRACULA["current_line"], DRACULA["purple"], DRACULA["yellow"], DRACULA["dark_wall"]]
+        [
+            DRACULA["current_line"],
+            "#6e473b",
+            "#1e4d6b",
+            DRACULA["purple"],
+            DRACULA["yellow"],
+            DRACULA["dark_wall"],
+        ]
     )
-    bounds = [-0.1, 0.2, 0.6, 0.9, 1.1]
+    bounds = [-0.1, 0.1, 0.25, 0.35, 0.6, 0.9, 1.1]
     norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
 
     ax.imshow(display_grid, cmap=cmap, norm=norm, origin="upper")

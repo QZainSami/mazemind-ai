@@ -3,9 +3,11 @@ Classical Search Algorithms for MazeMind AI.
 Implements SearchResult dataclass and SearchAgent hierarchy:
 - BFSAgent (Breadth-First Search)
 - DFSAgent (Depth-First Search)
+- UCSAgent (Uniform Cost Search / Dijkstra)
 - GreedyAgent (Greedy Best-First Search)
-- AStarAgent (A* Search)
-Course: CSL-325 Artificial Intelligence Lab (Fall 2026).
+- AStarAgent (A* Search & Weighted A* with w >= 1.0)
+- BidirectionalBFSAgent (Concurrent Forward + Backward BFS)
+- BidirectionalAStarAgent (Concurrent Forward + Backward A*)
 """
 
 from abc import ABC, abstractmethod
@@ -22,7 +24,10 @@ from .environments import Environment
 class SearchResult:
     """
     Standardized result object returned by all search algorithms.
+    Optional trace metadata supports open frontier rendering, cell inspection (g, h, f),
+    and bidirectional search visualization.
     """
+
     algorithm_name: str
     found: bool
     path: List[Any] = field(default_factory=list)
@@ -32,6 +37,10 @@ class SearchResult:
     execution_time_ms: float = 0.0
     exploration_history: List[Any] = field(default_factory=list)
     heuristic_metric: str = "none"
+    exploration_sides: Optional[List[int]] = None
+    meet_state: Optional[Any] = None
+    frontier_spans: Optional[Dict[Any, Tuple[int, int]]] = None
+    cell_costs: Optional[Dict[Any, Tuple[float, float, float]]] = None
 
 
 class SearchAgent(ABC):
@@ -49,14 +58,17 @@ class SearchAgent(ABC):
         pass
 
     @staticmethod
+    def _track_grid_metrics(env: Environment) -> bool:
+        """Only populate full frontier/cell tooltip metadata for compact grid topologies."""
+        return hasattr(env, "grid")
+
+    @staticmethod
     def reconstruct_path(
         parent_map: Dict[Any, Optional[Any]],
         start: Any,
         goal: Any,
     ) -> List[Any]:
-        """
-        Reconstructs the solution path from start to goal using the parent map.
-        """
+        """Reconstructs the solution path from start to goal using the parent map."""
         curr = goal
         path: List[Any] = []
         while curr is not None:
@@ -65,7 +77,6 @@ class SearchAgent(ABC):
                 break
             curr = parent_map.get(curr)
 
-        # If goal does not lead back to start
         if not path or path[-1] != start:
             return []
 
@@ -76,9 +87,7 @@ class SearchAgent(ABC):
 class BFSAgent(SearchAgent):
     """
     Breadth-First Search (BFS) Agent.
-    Guarantees shortest path in unweighted graphs using a FIFO queue.
-    Completeness: Yes (on finite branching factor).
-    Optimality: Yes (for uniform step costs).
+    Explores shallowest unweighted nodes first using a FIFO queue.
     """
 
     def __init__(self, name: str = "BFS"):
@@ -87,6 +96,7 @@ class BFSAgent(SearchAgent):
     def solve(self, env: Environment) -> SearchResult:
         start_time = time.perf_counter()
         start = env.get_start_state()
+        track = self._track_grid_metrics(env)
 
         if env.is_goal_state(start):
             duration_ms = (time.perf_counter() - start_time) * 1000.0
@@ -100,6 +110,8 @@ class BFSAgent(SearchAgent):
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
                 heuristic_metric="none",
+                frontier_spans={start: (0, 1)} if track else None,
+                cell_costs={start: (0.0, 0.0, 0.0)} if track else None,
             )
 
         queue: deque = deque([start])
@@ -108,8 +120,15 @@ class BFSAgent(SearchAgent):
         cost_map: Dict[Any, int] = {start: 0}
         exploration_history: List[Any] = []
 
+        inf_step = 10**9
+        discover_step: Dict[Any, int] = {start: 0} if track else {}
+        expand_step: Dict[Any, int] = {}
+        cell_costs: Dict[Any, Tuple[float, float, float]] = (
+            {start: (0.0, 0.0, 0.0)} if track else {}
+        )
+
         nodes_expanded = 0
-        max_frontier_size = len(queue)
+        max_frontier_size = 1
         found = False
         goal_state: Optional[Any] = None
 
@@ -118,6 +137,8 @@ class BFSAgent(SearchAgent):
             current = queue.popleft()
             nodes_expanded += 1
             exploration_history.append(current)
+            if track and current not in expand_step:
+                expand_step[current] = nodes_expanded
 
             if env.is_goal_state(current):
                 found = True
@@ -128,8 +149,12 @@ class BFSAgent(SearchAgent):
                 if neighbor not in visited:
                     visited.add(neighbor)
                     parent_map[neighbor] = current
-                    cost_map[neighbor] = cost_map[current] + step_cost
+                    nc = cost_map[current] + step_cost
+                    cost_map[neighbor] = nc
                     queue.append(neighbor)
+                    if track:
+                        discover_step.setdefault(neighbor, nodes_expanded)
+                        cell_costs[neighbor] = (float(nc), 0.0, float(nc))
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         path = (
@@ -138,6 +163,11 @@ class BFSAgent(SearchAgent):
             else []
         )
         path_cost = cost_map.get(goal_state, 0) if found and goal_state is not None else 0
+        spans = (
+            {s: (discover_step[s], expand_step.get(s, inf_step)) for s in discover_step}
+            if track
+            else None
+        )
 
         return SearchResult(
             algorithm_name=self.name,
@@ -149,15 +179,14 @@ class BFSAgent(SearchAgent):
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
             heuristic_metric="none",
+            frontier_spans=spans,
+            cell_costs=cell_costs if track else None,
         )
 
 
 class DFSAgent(SearchAgent):
     """
-    Depth-First Search (DFS) Agent.
-    Uses an explicit LIFO stack to prevent call-stack limits on large grids.
-    Completeness: Yes (with cycle detection in finite spaces).
-    Optimality: No.
+    Depth-First Search (DFS) Agent using an explicit LIFO stack with cycle prevention.
     """
 
     def __init__(self, name: str = "DFS"):
@@ -166,6 +195,7 @@ class DFSAgent(SearchAgent):
     def solve(self, env: Environment) -> SearchResult:
         start_time = time.perf_counter()
         start = env.get_start_state()
+        track = self._track_grid_metrics(env)
 
         if env.is_goal_state(start):
             duration_ms = (time.perf_counter() - start_time) * 1000.0
@@ -179,6 +209,8 @@ class DFSAgent(SearchAgent):
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
                 heuristic_metric="none",
+                frontier_spans={start: (0, 1)} if track else None,
+                cell_costs={start: (0.0, 0.0, 0.0)} if track else None,
             )
 
         stack: List[Any] = [start]
@@ -187,8 +219,15 @@ class DFSAgent(SearchAgent):
         cost_map: Dict[Any, int] = {start: 0}
         exploration_history: List[Any] = []
 
+        inf_step = 10**9
+        discover_step: Dict[Any, int] = {start: 0} if track else {}
+        expand_step: Dict[Any, int] = {}
+        cell_costs: Dict[Any, Tuple[float, float, float]] = (
+            {start: (0.0, 0.0, 0.0)} if track else {}
+        )
+
         nodes_expanded = 0
-        max_frontier_size = len(stack)
+        max_frontier_size = 1
         found = False
         goal_state: Optional[Any] = None
 
@@ -202,6 +241,8 @@ class DFSAgent(SearchAgent):
             visited.add(current)
             nodes_expanded += 1
             exploration_history.append(current)
+            if track and current not in expand_step:
+                expand_step[current] = nodes_expanded
 
             if env.is_goal_state(current):
                 found = True
@@ -209,12 +250,15 @@ class DFSAgent(SearchAgent):
                 break
 
             neighbors = env.get_neighbors(current)
-            # Push in reverse so first neighbor is expanded next
             for neighbor, step_cost in reversed(neighbors):
                 if neighbor not in visited:
                     if neighbor not in parent_map:
                         parent_map[neighbor] = current
-                        cost_map[neighbor] = cost_map[current] + step_cost
+                        nc = cost_map[current] + step_cost
+                        cost_map[neighbor] = nc
+                        if track:
+                            discover_step.setdefault(neighbor, nodes_expanded)
+                            cell_costs[neighbor] = (float(nc), 0.0, float(nc))
                     stack.append(neighbor)
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
@@ -224,6 +268,11 @@ class DFSAgent(SearchAgent):
             else []
         )
         path_cost = cost_map.get(goal_state, 0) if found and goal_state is not None else 0
+        spans = (
+            {s: (discover_step[s], expand_step.get(s, inf_step)) for s in discover_step}
+            if track
+            else None
+        )
 
         return SearchResult(
             algorithm_name=self.name,
@@ -235,16 +284,121 @@ class DFSAgent(SearchAgent):
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
             heuristic_metric="none",
+            frontier_spans=spans,
+            cell_costs=cell_costs if track else None,
+        )
+
+
+class UCSAgent(SearchAgent):
+    """
+    Uniform Cost Search (UCS / Dijkstra) Agent.
+    Expands nodes in strict order of lowest cumulative path cost g(n),
+    guaranteeing optimal weighted paths even across Mud/Water terrain.
+    """
+
+    def __init__(self, name: str = "UCS (Dijkstra)"):
+        super().__init__(name)
+
+    def solve(self, env: Environment) -> SearchResult:
+        start_time = time.perf_counter()
+        start = env.get_start_state()
+        track = self._track_grid_metrics(env)
+
+        if env.is_goal_state(start):
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            return SearchResult(
+                algorithm_name=self.name,
+                found=True,
+                path=[start],
+                path_cost=0,
+                nodes_expanded=0,
+                max_frontier_size=1,
+                execution_time_ms=round(duration_ms, 3),
+                exploration_history=[start],
+                heuristic_metric="none",
+                frontier_spans={start: (0, 1)} if track else None,
+                cell_costs={start: (0.0, 0.0, 0.0)} if track else None,
+            )
+
+        counter = 0
+        g_score: Dict[Any, int] = {start: 0}
+        frontier: List[Tuple[int, int, Any]] = [(0, counter, start)]
+        parent_map: Dict[Any, Optional[Any]] = {start: None}
+        closed_set: Set[Any] = set()
+        exploration_history: List[Any] = []
+
+        inf_step = 10**9
+        discover_step: Dict[Any, int] = {start: 0} if track else {}
+        expand_step: Dict[Any, int] = {}
+        cell_costs: Dict[Any, Tuple[float, float, float]] = (
+            {start: (0.0, 0.0, 0.0)} if track else {}
+        )
+
+        nodes_expanded = 0
+        max_frontier_size = 1
+        found = False
+        goal_state: Optional[Any] = None
+
+        while frontier:
+            max_frontier_size = max(max_frontier_size, len(frontier))
+            curr_g, _, current = heapq.heappop(frontier)
+
+            if current in closed_set or curr_g > g_score.get(current, 10**12):
+                continue
+
+            closed_set.add(current)
+            nodes_expanded += 1
+            exploration_history.append(current)
+            if track and current not in expand_step:
+                expand_step[current] = nodes_expanded
+
+            if env.is_goal_state(current):
+                found = True
+                goal_state = current
+                break
+
+            for neighbor, step_cost in env.get_neighbors(current):
+                tentative_g = curr_g + step_cost
+                if tentative_g < g_score.get(neighbor, 10**12):
+                    g_score[neighbor] = tentative_g
+                    parent_map[neighbor] = current
+                    counter += 1
+                    heapq.heappush(frontier, (tentative_g, counter, neighbor))
+                    if track:
+                        discover_step.setdefault(neighbor, nodes_expanded)
+                        cell_costs[neighbor] = (float(tentative_g), 0.0, float(tentative_g))
+
+        duration_ms = (time.perf_counter() - start_time) * 1000.0
+        path = (
+            self.reconstruct_path(parent_map, start, goal_state)
+            if found and goal_state is not None
+            else []
+        )
+        path_cost = g_score.get(goal_state, 0) if found and goal_state is not None else 0
+        spans = (
+            {s: (discover_step[s], expand_step.get(s, inf_step)) for s in discover_step}
+            if track
+            else None
+        )
+
+        return SearchResult(
+            algorithm_name=self.name,
+            found=found,
+            path=path,
+            path_cost=path_cost,
+            nodes_expanded=nodes_expanded,
+            max_frontier_size=max_frontier_size,
+            execution_time_ms=round(duration_ms, 3),
+            exploration_history=exploration_history,
+            heuristic_metric="none",
+            frontier_spans=spans,
+            cell_costs=cell_costs if track else None,
         )
 
 
 class GreedyAgent(SearchAgent):
     """
-    Greedy Best-First Search Agent.
-    Evaluates nodes strictly by heuristic estimate: f(n) = h(n).
-    Uses heapq with an insertion counter to break ties cleanly.
-    Completeness: Yes (with visited check in finite spaces).
-    Optimality: No.
+    Greedy Best-First Search Agent: evaluates strictly by f(n) = h(n).
     """
 
     def __init__(
@@ -258,6 +412,8 @@ class GreedyAgent(SearchAgent):
     def solve(self, env: Environment) -> SearchResult:
         start_time = time.perf_counter()
         start = env.get_start_state()
+        track = self._track_grid_metrics(env)
+        h_start = env.heuristic(start, metric=self.heuristic_metric)
 
         if env.is_goal_state(start):
             duration_ms = (time.perf_counter() - start_time) * 1000.0
@@ -271,24 +427,32 @@ class GreedyAgent(SearchAgent):
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
                 heuristic_metric=self.heuristic_metric,
+                frontier_spans={start: (0, 1)} if track else None,
+                cell_costs={start: (0.0, round(h_start, 2), round(h_start, 2))} if track else None,
             )
 
         counter = 0
-        h_start = env.heuristic(start, metric=self.heuristic_metric)
         frontier: List[Tuple[float, int, Any]] = [(h_start, counter, start)]
         visited: Set[Any] = set()
         parent_map: Dict[Any, Optional[Any]] = {start: None}
         cost_map: Dict[Any, int] = {start: 0}
         exploration_history: List[Any] = []
 
+        inf_step = 10**9
+        discover_step: Dict[Any, int] = {start: 0} if track else {}
+        expand_step: Dict[Any, int] = {}
+        cell_costs: Dict[Any, Tuple[float, float, float]] = (
+            {start: (0.0, round(h_start, 2), round(h_start, 2))} if track else {}
+        )
+
         nodes_expanded = 0
-        max_frontier_size = len(frontier)
+        max_frontier_size = 1
         found = False
         goal_state: Optional[Any] = None
 
         while frontier:
             max_frontier_size = max(max_frontier_size, len(frontier))
-            h_val, _, current = heapq.heappop(frontier)
+            _, _, current = heapq.heappop(frontier)
 
             if current in visited:
                 continue
@@ -296,6 +460,8 @@ class GreedyAgent(SearchAgent):
             visited.add(current)
             nodes_expanded += 1
             exploration_history.append(current)
+            if track and current not in expand_step:
+                expand_step[current] = nodes_expanded
 
             if env.is_goal_state(current):
                 found = True
@@ -310,6 +476,10 @@ class GreedyAgent(SearchAgent):
                     counter += 1
                     h_neighbor = env.heuristic(neighbor, metric=self.heuristic_metric)
                     heapq.heappush(frontier, (h_neighbor, counter, neighbor))
+                    if track:
+                        discover_step.setdefault(neighbor, nodes_expanded)
+                        nc = float(cost_map[neighbor])
+                        cell_costs[neighbor] = (nc, round(h_neighbor, 2), round(h_neighbor, 2))
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         path = (
@@ -318,6 +488,11 @@ class GreedyAgent(SearchAgent):
             else []
         )
         path_cost = cost_map.get(goal_state, 0) if found and goal_state is not None else 0
+        spans = (
+            {s: (discover_step[s], expand_step.get(s, inf_step)) for s in discover_step}
+            if track
+            else None
+        )
 
         return SearchResult(
             algorithm_name=self.name,
@@ -329,29 +504,33 @@ class GreedyAgent(SearchAgent):
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
             heuristic_metric=self.heuristic_metric,
+            frontier_spans=spans,
+            cell_costs=cell_costs if track else None,
         )
 
 
 class AStarAgent(SearchAgent):
     """
-    A* Search Agent.
-    Evaluates nodes by f(n) = g(n) + h(n).
-    Guarantees optimal paths with admissible & consistent heuristics.
-    Completeness: Yes.
-    Optimality: Yes.
+    A* and Weighted A* Search Agent: evaluates nodes by f(n) = g(n) + weight * h(n).
+    Optimal when weight == 1.0 and h(n) is admissible; trades optimality for speed when weight > 1.0.
     """
 
     def __init__(
         self,
         name: str = "A*",
         heuristic_metric: str = "manhattan",
+        weight: float = 1.0,
     ):
         super().__init__(name)
         self.heuristic_metric = heuristic_metric
+        self.weight = max(1.0, float(weight))
 
     def solve(self, env: Environment) -> SearchResult:
         start_time = time.perf_counter()
         start = env.get_start_state()
+        track = self._track_grid_metrics(env)
+        h_start = env.heuristic(start, metric=self.heuristic_metric)
+        f_start = self.weight * h_start
 
         if env.is_goal_state(start):
             duration_ms = (time.perf_counter() - start_time) * 1000.0
@@ -365,53 +544,67 @@ class AStarAgent(SearchAgent):
                 execution_time_ms=round(duration_ms, 3),
                 exploration_history=[start],
                 heuristic_metric=self.heuristic_metric,
+                frontier_spans={start: (0, 1)} if track else None,
+                cell_costs={start: (0.0, round(h_start, 2), round(f_start, 2))} if track else None,
             )
 
         counter = 0
         g_score: Dict[Any, float] = {start: 0.0}
-        h_start = env.heuristic(start, metric=self.heuristic_metric)
-        f_start = h_start
-
-        frontier: List[Tuple[float, int, Any]] = [(f_start, counter, start)]
+        frontier: List[Tuple[float, float, int, float, Any]] = [
+            (f_start, h_start, counter, 0.0, start)
+        ]
         parent_map: Dict[Any, Optional[Any]] = {start: None}
-        closed_set: Set[Any] = set()
+        expanded_best_g: Dict[Any, float] = {}
         exploration_history: List[Any] = []
 
+        inf_step = 10**9
+        discover_step: Dict[Any, int] = {start: 0} if track else {}
+        expand_step: Dict[Any, int] = {}
+        cell_costs: Dict[Any, Tuple[float, float, float]] = (
+            {start: (0.0, round(h_start, 2), round(f_start, 2))} if track else {}
+        )
+
         nodes_expanded = 0
-        max_frontier_size = len(frontier)
+        max_frontier_size = 1
         found = False
         goal_state: Optional[Any] = None
 
         while frontier:
             max_frontier_size = max(max_frontier_size, len(frontier))
-            current_f, _, current = heapq.heappop(frontier)
+            _, _, _, curr_g, current = heapq.heappop(frontier)
 
-            if current in closed_set:
+            if curr_g >= expanded_best_g.get(current, float("inf")):
+                continue
+            if curr_g > g_score.get(current, float("inf")):
                 continue
 
-            closed_set.add(current)
+            expanded_best_g[current] = curr_g
             nodes_expanded += 1
             exploration_history.append(current)
+            if track and current not in expand_step:
+                expand_step[current] = nodes_expanded
 
             if env.is_goal_state(current):
                 found = True
                 goal_state = current
                 break
 
-            current_g = g_score[current]
-
             for neighbor, step_cost in env.get_neighbors(current):
-                tentative_g = current_g + step_cost
-                if neighbor in closed_set and tentative_g >= g_score.get(neighbor, float("inf")):
-                    continue
-
+                tentative_g = curr_g + step_cost
                 if tentative_g < g_score.get(neighbor, float("inf")):
                     parent_map[neighbor] = current
                     g_score[neighbor] = tentative_g
                     counter += 1
                     h_cost = env.heuristic(neighbor, metric=self.heuristic_metric)
-                    f_cost = tentative_g + h_cost
-                    heapq.heappush(frontier, (f_cost, counter, neighbor))
+                    f_cost = tentative_g + self.weight * h_cost
+                    heapq.heappush(frontier, (f_cost, h_cost, counter, tentative_g, neighbor))
+                    if track:
+                        discover_step.setdefault(neighbor, nodes_expanded)
+                        cell_costs[neighbor] = (
+                            round(tentative_g, 2),
+                            round(h_cost, 2),
+                            round(f_cost, 2),
+                        )
 
         duration_ms = (time.perf_counter() - start_time) * 1000.0
         path = (
@@ -420,6 +613,11 @@ class AStarAgent(SearchAgent):
             else []
         )
         path_cost = int(g_score.get(goal_state, 0)) if found and goal_state is not None else 0
+        spans = (
+            {s: (discover_step[s], expand_step.get(s, inf_step)) for s in discover_step}
+            if track
+            else None
+        )
 
         return SearchResult(
             algorithm_name=self.name,
@@ -431,4 +629,390 @@ class AStarAgent(SearchAgent):
             execution_time_ms=round(duration_ms, 3),
             exploration_history=exploration_history,
             heuristic_metric=self.heuristic_metric,
+            frontier_spans=spans,
+            cell_costs=cell_costs if track else None,
+        )
+
+
+def _compute_path_cost(env: Environment, path: List[Any]) -> int:
+    """Computes exact transition cost sum along a reconstructed state path."""
+    if len(path) <= 1:
+        return 0
+    total = 0
+    for i in range(len(path) - 1):
+        curr = path[i]
+        nxt = path[i + 1]
+        step = 1
+        for nbr, cost in env.get_neighbors(curr):
+            if nbr == nxt:
+                step = cost
+                break
+        total += step
+    return total
+
+
+def _reconstruct_bidirectional_path(
+    parent_fwd: Dict[Any, Optional[Any]],
+    parent_bwd: Dict[Any, Optional[Any]],
+    start: Any,
+    meet: Any,
+    goal: Any,
+) -> List[Any]:
+    """Stitches start -> meet -> goal from forward and backward parent maps."""
+    fwd_part = SearchAgent.reconstruct_path(parent_fwd, start, meet)
+    if not fwd_part:
+        return []
+    bwd_part: List[Any] = []
+    curr = parent_bwd.get(meet)
+    while curr is not None:
+        bwd_part.append(curr)
+        if curr == goal:
+            break
+        curr = parent_bwd.get(curr)
+    return fwd_part + bwd_part
+
+
+class BidirectionalBFSAgent(SearchAgent):
+    """
+    Bidirectional Breadth-First Search Agent.
+    Expands concurrently from Start (side=0) and Goal (side=1) until frontiers collide.
+    """
+
+    def __init__(self, name: str = "Bidirectional BFS"):
+        super().__init__(name)
+
+    def solve(self, env: Environment) -> SearchResult:
+        start_time = time.perf_counter()
+        start = env.get_start_state()
+        goal = env.get_goal_state()
+        track = self._track_grid_metrics(env)
+
+        if start == goal or env.is_goal_state(start):
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            return SearchResult(
+                algorithm_name=self.name,
+                found=True,
+                path=[start],
+                path_cost=0,
+                nodes_expanded=0,
+                max_frontier_size=1,
+                execution_time_ms=round(duration_ms, 3),
+                exploration_history=[start],
+                exploration_sides=[0],
+                meet_state=start,
+                heuristic_metric="none",
+                frontier_spans={start: (0, 1)} if track else None,
+                cell_costs={start: (0.0, 0.0, 0.0)} if track else None,
+            )
+
+        q_fwd: deque = deque([start])
+        q_bwd: deque = deque([goal])
+        parent_fwd: Dict[Any, Optional[Any]] = {start: None}
+        parent_bwd: Dict[Any, Optional[Any]] = {goal: None}
+        depth_fwd: Dict[Any, int] = {start: 0}
+        depth_bwd: Dict[Any, int] = {goal: 0}
+
+        exploration_history: List[Any] = []
+        exploration_sides: List[int] = []
+        inf_step = 10**9
+        discover_step: Dict[Any, int] = ({start: 0, goal: 0} if track else {})
+        expand_step: Dict[Any, int] = {}
+        cell_costs: Dict[Any, Tuple[float, float, float]] = (
+            {start: (0.0, 0.0, 0.0), goal: (0.0, 0.0, 0.0)} if track else {}
+        )
+
+        nodes_expanded = 0
+        max_frontier_size = 2
+        meet_state: Optional[Any] = None
+
+        while q_fwd and q_bwd and meet_state is None:
+            max_frontier_size = max(max_frontier_size, len(q_fwd) + len(q_bwd))
+
+            if len(q_fwd) <= len(q_bwd):
+                # Expand one BFS layer forward from start
+                for _ in range(len(q_fwd)):
+                    current = q_fwd.popleft()
+                    nodes_expanded += 1
+                    exploration_history.append(current)
+                    exploration_sides.append(0)
+                    if track and current not in expand_step:
+                        expand_step[current] = nodes_expanded
+
+                    if current in parent_bwd:
+                        meet_state = current
+                        break
+
+                    for neighbor, _ in env.get_neighbors(current):
+                        if neighbor not in parent_fwd:
+                            parent_fwd[neighbor] = current
+                            d = depth_fwd[current] + 1
+                            depth_fwd[neighbor] = d
+                            q_fwd.append(neighbor)
+                            if track:
+                                discover_step.setdefault(neighbor, nodes_expanded)
+                                cell_costs[neighbor] = (float(d), 0.0, float(d))
+                            if neighbor in parent_bwd:
+                                meet_state = neighbor
+                                break
+                    if meet_state is not None:
+                        break
+            else:
+                # Expand one BFS layer backward from goal
+                for _ in range(len(q_bwd)):
+                    current = q_bwd.popleft()
+                    nodes_expanded += 1
+                    exploration_history.append(current)
+                    exploration_sides.append(1)
+                    if track and current not in expand_step:
+                        expand_step[current] = nodes_expanded
+
+                    if current in parent_fwd:
+                        meet_state = current
+                        break
+
+                    for neighbor, _ in env.get_reverse_neighbors(current):
+                        if neighbor not in parent_bwd:
+                            parent_bwd[neighbor] = current
+                            d = depth_bwd[current] + 1
+                            depth_bwd[neighbor] = d
+                            q_bwd.append(neighbor)
+                            if track:
+                                discover_step.setdefault(neighbor, nodes_expanded)
+                                cell_costs[neighbor] = (float(d), 0.0, float(d))
+                            if neighbor in parent_fwd:
+                                meet_state = neighbor
+                                break
+                    if meet_state is not None:
+                        break
+
+        duration_ms = (time.perf_counter() - start_time) * 1000.0
+        found = meet_state is not None
+        path = (
+            _reconstruct_bidirectional_path(parent_fwd, parent_bwd, start, meet_state, goal)
+            if found and meet_state is not None
+            else []
+        )
+        path_cost = _compute_path_cost(env, path) if found else 0
+        spans = (
+            {s: (discover_step[s], expand_step.get(s, inf_step)) for s in discover_step}
+            if track
+            else None
+        )
+
+        return SearchResult(
+            algorithm_name=self.name,
+            found=found,
+            path=path,
+            path_cost=path_cost,
+            nodes_expanded=nodes_expanded,
+            max_frontier_size=max_frontier_size,
+            execution_time_ms=round(duration_ms, 3),
+            exploration_history=exploration_history,
+            exploration_sides=exploration_sides,
+            meet_state=meet_state,
+            heuristic_metric="none",
+            frontier_spans=spans,
+            cell_costs=cell_costs if track else None,
+        )
+
+
+class BidirectionalAStarAgent(SearchAgent):
+    """
+    Bidirectional A* Search Agent.
+    Runs symmetric front-to-end A* searches from Start -> Goal and Goal -> Start,
+    guaranteeing optimal paths on both unweighted and weighted grids when weight == 1.0.
+    """
+
+    def __init__(
+        self,
+        name: str = "Bidirectional A*",
+        heuristic_metric: str = "manhattan",
+        weight: float = 1.0,
+    ):
+        super().__init__(name)
+        self.heuristic_metric = heuristic_metric
+        self.weight = max(1.0, float(weight))
+
+    def solve(self, env: Environment) -> SearchResult:
+        start_time = time.perf_counter()
+        start = env.get_start_state()
+        goal = env.get_goal_state()
+        track = self._track_grid_metrics(env)
+        h0_f = env.heuristic(start, metric=self.heuristic_metric, target=goal)
+        h0_b = env.heuristic(goal, metric=self.heuristic_metric, target=start)
+
+        if start == goal or env.is_goal_state(start):
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            return SearchResult(
+                algorithm_name=self.name,
+                found=True,
+                path=[start],
+                path_cost=0,
+                nodes_expanded=0,
+                max_frontier_size=1,
+                execution_time_ms=round(duration_ms, 3),
+                exploration_history=[start],
+                exploration_sides=[0],
+                meet_state=start,
+                heuristic_metric=self.heuristic_metric,
+                frontier_spans={start: (0, 1)} if track else None,
+                cell_costs={start: (0.0, round(h0_f, 2), round(h0_f, 2))} if track else None,
+            )
+
+        counter = 0
+        g_fwd: Dict[Any, float] = {start: 0.0}
+        g_bwd: Dict[Any, float] = {goal: 0.0}
+        parent_fwd: Dict[Any, Optional[Any]] = {start: None}
+        parent_bwd: Dict[Any, Optional[Any]] = {goal: None}
+        expanded_fwd: Dict[Any, float] = {}
+        expanded_bwd: Dict[Any, float] = {}
+
+        f_heap_fwd: List[Tuple[float, float, int, float, Any]] = [
+            (self.weight * h0_f, h0_f, counter, 0.0, start)
+        ]
+        counter += 1
+        f_heap_bwd: List[Tuple[float, float, int, float, Any]] = [
+            (self.weight * h0_b, h0_b, counter, 0.0, goal)
+        ]
+
+        exploration_history: List[Any] = []
+        exploration_sides: List[int] = []
+        inf_step = 10**9
+        discover_step: Dict[Any, int] = ({start: 0, goal: 0} if track else {})
+        expand_step: Dict[Any, int] = {}
+        cell_costs: Dict[Any, Tuple[float, float, float]] = (
+            {
+                start: (0.0, round(h0_f, 2), round(self.weight * h0_f, 2)),
+                goal: (0.0, round(h0_b, 2), round(self.weight * h0_b, 2)),
+            }
+            if track
+            else {}
+        )
+
+        best_mu = float("inf")
+        best_meet: Optional[Any] = None
+        nodes_expanded = 0
+        max_frontier_size = 2
+
+        def _prune_top(heap, g_map, exp_map):
+            while heap:
+                _, _, _, g_val, st = heap[0]
+                if g_val >= exp_map.get(st, float("inf")) or g_val > g_map.get(st, float("inf")):
+                    heapq.heappop(heap)
+                else:
+                    return heap[0][0]
+            return None
+
+        expand_forward_turn = True
+        while f_heap_fwd and f_heap_bwd:
+            top_f = _prune_top(f_heap_fwd, g_fwd, expanded_fwd)
+            top_b = _prune_top(f_heap_bwd, g_bwd, expanded_bwd)
+            if top_f is None or top_b is None:
+                break
+
+            if self.weight == 1.0:
+                if top_f >= best_mu or top_b >= best_mu:
+                    break
+            elif best_meet is not None:
+                break
+
+            max_frontier_size = max(max_frontier_size, len(f_heap_fwd) + len(f_heap_bwd))
+
+            # Alternate / pick side with smaller f
+            use_fwd = expand_forward_turn if abs(top_f - top_b) < 1e-9 else (top_f <= top_b)
+            expand_forward_turn = not use_fwd
+
+            if use_fwd:
+                _, _, _, curr_g, current = heapq.heappop(f_heap_fwd)
+                expanded_fwd[current] = curr_g
+                nodes_expanded += 1
+                exploration_history.append(current)
+                exploration_sides.append(0)
+                if track and current not in expand_step:
+                    expand_step[current] = nodes_expanded
+
+                if current in g_bwd and curr_g + g_bwd[current] < best_mu:
+                    best_mu = curr_g + g_bwd[current]
+                    best_meet = current
+
+                for neighbor, step_cost in env.get_neighbors(current):
+                    tentative_g = curr_g + step_cost
+                    if tentative_g < g_fwd.get(neighbor, float("inf")):
+                        parent_fwd[neighbor] = current
+                        g_fwd[neighbor] = tentative_g
+                        counter += 1
+                        h_val = env.heuristic(neighbor, metric=self.heuristic_metric, target=goal)
+                        f_val = tentative_g + self.weight * h_val
+                        heapq.heappush(f_heap_fwd, (f_val, h_val, counter, tentative_g, neighbor))
+                        if neighbor in g_bwd and tentative_g + g_bwd[neighbor] < best_mu:
+                            best_mu = tentative_g + g_bwd[neighbor]
+                            best_meet = neighbor
+                        if track:
+                            discover_step.setdefault(neighbor, nodes_expanded)
+                            cell_costs[neighbor] = (
+                                round(tentative_g, 2),
+                                round(h_val, 2),
+                                round(f_val, 2),
+                            )
+            else:
+                _, _, _, curr_g, current = heapq.heappop(f_heap_bwd)
+                expanded_bwd[current] = curr_g
+                nodes_expanded += 1
+                exploration_history.append(current)
+                exploration_sides.append(1)
+                if track and current not in expand_step:
+                    expand_step[current] = nodes_expanded
+
+                if current in g_fwd and g_fwd[current] + curr_g < best_mu:
+                    best_mu = g_fwd[current] + curr_g
+                    best_meet = current
+
+                for neighbor, step_cost in env.get_reverse_neighbors(current):
+                    tentative_g = curr_g + step_cost
+                    if tentative_g < g_bwd.get(neighbor, float("inf")):
+                        parent_bwd[neighbor] = current
+                        g_bwd[neighbor] = tentative_g
+                        counter += 1
+                        h_val = env.heuristic(neighbor, metric=self.heuristic_metric, target=start)
+                        f_val = tentative_g + self.weight * h_val
+                        heapq.heappush(f_heap_bwd, (f_val, h_val, counter, tentative_g, neighbor))
+                        if neighbor in g_fwd and g_fwd[neighbor] + tentative_g < best_mu:
+                            best_mu = g_fwd[neighbor] + tentative_g
+                            best_meet = neighbor
+                        if track:
+                            discover_step.setdefault(neighbor, nodes_expanded)
+                            cell_costs[neighbor] = (
+                                round(tentative_g, 2),
+                                round(h_val, 2),
+                                round(f_val, 2),
+                            )
+
+        duration_ms = (time.perf_counter() - start_time) * 1000.0
+        found = best_meet is not None
+        path = (
+            _reconstruct_bidirectional_path(parent_fwd, parent_bwd, start, best_meet, goal)
+            if found and best_meet is not None
+            else []
+        )
+        path_cost = _compute_path_cost(env, path) if found else 0
+        spans = (
+            {s: (discover_step[s], expand_step.get(s, inf_step)) for s in discover_step}
+            if track
+            else None
+        )
+
+        return SearchResult(
+            algorithm_name=self.name,
+            found=found,
+            path=path,
+            path_cost=path_cost,
+            nodes_expanded=nodes_expanded,
+            max_frontier_size=max_frontier_size,
+            execution_time_ms=round(duration_ms, 3),
+            exploration_history=exploration_history,
+            exploration_sides=exploration_sides,
+            meet_state=best_meet,
+            heuristic_metric=self.heuristic_metric,
+            frontier_spans=spans,
+            cell_costs=cell_costs if track else None,
         )
