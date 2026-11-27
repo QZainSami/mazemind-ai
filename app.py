@@ -29,6 +29,8 @@ from mazemind.search_agents import (
 )
 from mazemind.visualizer import plot_comparison_bars
 from mazemind.web_animator import (
+    _MAZE_VER,
+    _PUZZLE_VER,
     build_maze_payload,
     build_puzzle_payload,
     get_maze_component,
@@ -427,7 +429,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
             canvas_px=460,
             run_id=st.session_state.maze_solve_seq,
         )
-        maze_component(data=maze_payload, key="maze_interactive_canvas")
+        maze_component(data=maze_payload, key=f"maze_interactive_canvas_{_MAZE_VER}")
 
     if st.session_state.search_results and len(st.session_state.search_results) > 1:
         with st.expander("📊 View Search Algorithm Comparison Table & Charts", expanded=False):
@@ -722,7 +724,7 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
         p_comp_res = puzzle_component(
             data=puzzle_payload,
             on_puzzle_edit_change=lambda: None,
-            key="puzzle_interactive_canvas",
+            key=f"puzzle_interactive_canvas_{_PUZZLE_VER}",
         )
         p_edit = getattr(p_comp_res, "puzzle_edit", None)
         if p_edit and "board" in p_edit:

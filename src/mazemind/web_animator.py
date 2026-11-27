@@ -6,6 +6,7 @@ Optimized zero-allocation frame rendering for:
 - Passive Hover Cell Inspector (g, h, f), Open Frontier highlights, Bidirectional colors
 """
 
+import hashlib
 import json
 from typing import Any, Dict, List, Optional, Tuple
 import streamlit as st
@@ -1321,26 +1322,40 @@ export default function(component) {
 """
 
 
+_MAZE_VER = hashlib.sha1((_MAZE_HTML + _MAZE_CSS + _MAZE_JS).encode("utf-8")).hexdigest()[:8]
+_PUZZLE_VER = hashlib.sha1((_PUZZLE_HTML + _PUZZLE_CSS + _PUZZLE_JS).encode("utf-8")).hexdigest()[:8]
+
+
 @st.cache_resource
-def get_maze_component():
+def _get_maze_component(version: str):
     """Registers and caches the bidirectional Streamlit v2 2D GridMaze component."""
     return st.components.v2.component(
-        "mazemind_maze_v2",
+        f"mazemind_maze_{version}",
         html=_MAZE_HTML,
         css=_MAZE_CSS,
         js=_MAZE_JS,
     )
 
 
+def get_maze_component():
+    """Returns the content-versioned Streamlit v2 2D GridMaze component."""
+    return _get_maze_component(_MAZE_VER)
+
+
 @st.cache_resource
-def get_puzzle_component():
+def _get_puzzle_component(version: str):
     """Registers and caches the bidirectional Streamlit v2 Sliding Puzzle component."""
     return st.components.v2.component(
-        "mazemind_puzzle_v2",
+        f"mazemind_puzzle_{version}",
         html=_PUZZLE_HTML,
         css=_PUZZLE_CSS,
         js=_PUZZLE_JS,
     )
+
+
+def get_puzzle_component():
+    """Returns the content-versioned Streamlit v2 Sliding Puzzle component."""
+    return _get_puzzle_component(_PUZZLE_VER)
 
 
 def build_maze_animator_html(
