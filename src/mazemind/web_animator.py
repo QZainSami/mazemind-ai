@@ -1,10 +1,9 @@
 """
 Interactive Visualizer & Animator Components (Dracula Theme) for MazeMind AI.
-Provides:
-1. Serialization helpers for GridMaze and EightPuzzle SearchResults
-2. Streamlit v2 bidirectional components (canvas painting, click-to-slide, hover g/h/f inspector,
-   open-frontier rendering, bidirectional dual-color, weighted terrain, and 2x2 Race Mode)
-3. Self-contained HTML builders (`build_maze_animator_html`, `build_puzzle_animator_html`)
+Optimized zero-allocation frame rendering for:
+- Enlarged 2D GridMaze (Single View + Synchronized 2x2 Race Grid)
+- Enlarged 8-Puzzle (3x3) & 15-Puzzle (4x4) with smooth 1-by-1 tile sliding
+- Passive Hover Cell Inspector (g, h, f), Open Frontier highlights, Bidirectional colors
 """
 
 import json
@@ -17,7 +16,7 @@ from .search_agents import SearchResult
 
 def _safe_json(data: object) -> str:
     """Serialize data to JSON safely for inline script embedding."""
-    return json.dumps(data).replace("</", "<\\/")
+    return json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
 
 
 def build_maze_payload(
@@ -27,10 +26,10 @@ def build_maze_payload(
     autoplay: bool = False,
     instant: bool = False,
     race_mode: bool = False,
-    canvas_px: int = 365,
+    canvas_px: int = 460,
     run_id: int = 0,
 ) -> Dict[str, Any]:
-    """Builds a compact JSON-serializable payload for the 2D GridMaze interactive component."""
+    """Builds a compact JSON-serializable payload for the 2D GridMaze component."""
     payload_results: Dict[str, Any] = {}
     algo_order: List[str] = []
 
@@ -80,7 +79,6 @@ def build_maze_payload(
         "rows": int(maze.rows),
         "cols": int(maze.cols),
         "grid": maze.grid.tolist(),
-        "weights": maze.weights.tolist(),
         "start": [int(maze.start[0]), int(maze.start[1])],
         "goal": [int(maze.goal[0]), int(maze.goal[1])],
         "algos": algo_order,
@@ -102,7 +100,7 @@ def build_puzzle_payload(
     autoplay: bool = False,
     instant: bool = False,
     race_mode: bool = False,
-    canvas_px: int = 330,
+    canvas_px: int = 440,
     run_id: int = 0,
 ) -> Dict[str, Any]:
     """Builds JSON-serializable payload for 8-Puzzle (3x3) and 15-Puzzle (4x4)."""
@@ -179,30 +177,26 @@ def build_puzzle_payload(
     }
 
 
-# =========================================================
-# Shared CSS & HTML Templates for Maze & Puzzle v2 Components
-# =========================================================
-
 _MAZE_CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
 .wrap {
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
   width: 100%; background: #282a36; color: #f8f8f2;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 .toolbar {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 5px; width: 100%; background: #21222c; border: 1px solid #44475a;
-  border-radius: 6px; padding: 4px 7px;
+  border-radius: 6px; padding: 5px 8px;
 }
 .row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 select {
   background: #282a36; color: #f8f8f2; border: 1px solid #6272a4;
-  border-radius: 4px; padding: 2px 5px; font-size: 11.5px; font-weight: 600; outline: none;
+  border-radius: 4px; padding: 3px 6px; font-size: 12px; font-weight: 600; outline: none;
 }
 .btn {
   background: #bd93f9; color: #282a36; border: none; border-radius: 4px;
-  padding: 3px 8px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+  padding: 4px 9px; font-size: 12px; font-weight: 700; cursor: pointer;
   line-height: 1.25; transition: background 0.12s ease;
 }
 .btn:hover:not(:disabled) { background: #ff79c6; }
@@ -210,43 +204,42 @@ select {
 .btn-sec { background: #44475a; color: #f8f8f2; border: 1px solid #6272a4; }
 .btn-sec:hover:not(:disabled) { background: #6272a4; color: #f8f8f2; }
 .btn-active { background: #8be9fd !important; color: #282a36 !important; border-color: #8be9fd !important; }
-.btn-paint-active { background: #ffb86c !important; color: #282a36 !important; border-color: #f1fa8c !important; }
-.speed-box { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #f1fa8c; font-weight: 600; }
+.speed-box { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #f1fa8c; font-weight: 600; }
 input[type="range"] { accent-color: #bd93f9; cursor: pointer; }
 .status-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; background: #21222c; border: 1px solid #44475a;
-  border-left: 4px solid #8be9fd; border-radius: 5px; padding: 4px 8px; font-size: 11.5px;
+  border-left: 4px solid #8be9fd; border-radius: 5px; padding: 4px 9px; font-size: 12px;
 }
 .status-main { color: #8be9fd; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.status-right { color: #50fa7b; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.status-right { color: #50fa7b; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .scrubber-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0 2px; }
 .scrubber { flex: 1; height: 8px; cursor: pointer; }
-.step-counter { font-size: 11px; color: #f8f8f2; min-width: 72px; text-align: right; font-variant-numeric: tabular-nums; }
+.step-counter { font-size: 11.5px; color: #f8f8f2; min-width: 74px; text-align: right; font-variant-numeric: tabular-nums; }
 .stage { position: relative; display: flex; justify-content: center; width: 100%; }
-.single-canvas { background: #282a36; border: 1px solid #6272a4; border-radius: 6px; display: block; touch-action: none; }
+.single-canvas { background: #282a36; border: 1px solid #6272a4; border-radius: 6px; display: block; cursor: crosshair; }
 .race-grid {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
-  width: 100%; max-width: 520px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  width: 100%; max-width: 580px;
 }
 .race-card {
-  background: #21222c; border: 1px solid #44475a; border-radius: 6px; padding: 4px;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: #21222c; border: 1px solid #44475a; border-radius: 6px; padding: 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
 }
 .race-card.winner { border-color: #50fa7b; box-shadow: 0 0 0 1px #50fa7b55; }
 .race-head {
   display: flex; justify-content: space-between; align-items: center; width: 100%;
-  font-size: 11px; font-weight: 700; padding: 0 2px;
+  font-size: 11.5px; font-weight: 700; padding: 0 2px;
 }
 .race-title { color: #8be9fd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.race-stat { color: #f1fa8c; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.race-stat { color: #f1fa8c; font-size: 11px; font-variant-numeric: tabular-nums; }
 .race-canvas { background: #282a36; border: 1px solid #44475a; border-radius: 4px; display: block; cursor: pointer; }
 .legend {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
-  font-size: 10.5px; color: #f8f8f2; padding-top: 1px;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+  font-size: 11px; color: #f8f8f2; padding-top: 2px;
 }
-.leg-item { display: flex; align-items: center; gap: 3px; }
-.swatch { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #6272a4; display: inline-block; }
+.leg-item { display: flex; align-items: center; gap: 4px; }
+.swatch { width: 11px; height: 11px; border-radius: 2px; border: 1px solid #6272a4; display: inline-block; }
 """
 
 _MAZE_HTML = """
@@ -267,22 +260,9 @@ _MAZE_HTML = """
       <button class="btn btn-sec btn-active" id="btnFrontier" disabled title="Highlight Open Frontier">Frontier</button>
       <div class="speed-box">
         <span>⚡</span>
-        <input type="range" id="speedSlider" min="0" max="6" step="1" value="2" style="width:66px;">
-        <span id="speedLabel" style="min-width:30px;">1.0x</span>
+        <input type="range" id="speedSlider" min="0" max="6" step="1" value="2" style="width:70px;">
+        <span id="speedLabel" style="min-width:32px;">1.0x</span>
       </div>
-    </div>
-  </div>
-
-  <div class="toolbar" style="padding:3px 7px;">
-    <div class="row">
-      <span style="font-size:11px; color:#ffb86c; font-weight:700; margin-right:2px;">🖌️ Canvas Tool:</span>
-      <button class="btn btn-sec btn-paint-active" data-tool="view">🖐️ Inspect</button>
-      <button class="btn btn-sec" data-tool="wall">⬛ Wall</button>
-      <button class="btn btn-sec" data-tool="mud">🟫 Mud(4)</button>
-      <button class="btn btn-sec" data-tool="water">🟦 Water(8)</button>
-      <button class="btn btn-sec" data-tool="open">⬜ Erase</button>
-      <button class="btn btn-sec" data-tool="start">🟩 Move S</button>
-      <button class="btn btn-sec" data-tool="goal">🟥 Move G</button>
     </div>
   </div>
 
@@ -296,20 +276,18 @@ _MAZE_HTML = """
     <span class="step-counter" id="stepCounter">0 / 0</span>
   </div>
 
-  <div class="stage" id="stageArea">
+  <div class="stage">
     <canvas id="mazeCanvas" class="single-canvas"></canvas>
     <div id="raceGrid" class="race-grid" style="display:none;"></div>
   </div>
 
   <div class="legend">
-    <span class="leg-item"><span class="swatch" style="background:#50fa7b;"></span>Start</span>
-    <span class="leg-item"><span class="swatch" style="background:#ff5555;"></span>Goal</span>
-    <span class="leg-item"><span class="swatch" style="background:#6e473b;"></span>Mud(4)</span>
-    <span class="leg-item"><span class="swatch" style="background:#1e4d6b;"></span>Water(8)</span>
+    <span class="leg-item"><span class="swatch" style="background:#50fa7b;"></span>Start (S)</span>
+    <span class="leg-item"><span class="swatch" style="background:#ff5555;"></span>Goal (G)</span>
     <span class="leg-item"><span class="swatch" style="background:#bd93f9;"></span>Explored</span>
-    <span class="leg-item"><span class="swatch" style="background:#8be9fd;"></span>Bwd/Frontier</span>
-    <span class="leg-item"><span class="swatch" style="background:#ff79c6;"></span>Active</span>
-    <span class="leg-item"><span class="swatch" style="background:#f1fa8c;"></span>Path</span>
+    <span class="leg-item"><span class="swatch" style="background:#38bdf8;"></span>Bwd / Frontier</span>
+    <span class="leg-item"><span class="swatch" style="background:#ff79c6;"></span>Active Tile</span>
+    <span class="leg-item"><span class="swatch" style="background:#f1fa8c;"></span>Solution Path</span>
     <span class="leg-item"><span class="swatch" style="background:#191a21;"></span>Wall</span>
   </div>
 </div>
@@ -317,14 +295,12 @@ _MAZE_HTML = """
 
 _MAZE_JS = """
 export default function(component) {
-  const { data: DATA, setTriggerValue, parentElement } = component;
+  const { data: DATA, parentElement } = component;
   if (!DATA) return;
 
   const DRACULA = {
     bg: "#282a36",
     open: "#44475a",
-    mud: "#6e473b",
-    water: "#1e4d6b",
     wall: "#191a21",
     border: "#6272a4",
     exploredFwd: "#bd93f9",
@@ -335,8 +311,7 @@ export default function(component) {
     pathLine: "#ffb86c",
     agent: "#8be9fd",
     start: "#50fa7b",
-    goal: "#ff5555",
-    fg: "#f8f8f2"
+    goal: "#ff5555"
   };
 
   const SPEED_LEVELS = [
@@ -368,32 +343,64 @@ export default function(component) {
   const stepCounter = q("#stepCounter");
   const singleCanvas = q("#mazeCanvas");
   const raceGrid = q("#raceGrid");
-  const toolButtons = parentElement.querySelectorAll("[data-tool]");
 
-  // Working local copies so painting stays smooth before syncing back to Python
-  let grid = DATA.grid.map(row => row.slice());
-  let weights = DATA.weights.map(row => row.slice());
-  let startPos = DATA.start.slice();
-  let goalPos = DATA.goal.slice();
+  const rows = DATA.rows;
+  const cols = DATA.cols;
+  const grid = DATA.grid;
+  const startPos = DATA.start;
+  const goalPos = DATA.goal;
+  const INF = 1e9;
+
+  // Pre-build flat Int32Array caches per solver for zero-allocation O(1) cell lookup during playback
+  const renderCache = {};
+  DATA.algos.forEach(name => {
+    const res = DATA.results[name];
+    if (!res) return;
+    const totalCells = rows * cols;
+    const expStep = new Int32Array(totalCells).fill(INF);
+    const sideGrid = new Int8Array(totalCells);
+    const discGrid = new Int32Array(totalCells).fill(INF);
+    const fExpGrid = new Int32Array(totalCells).fill(INF);
+    const pathStep = new Int32Array(totalCells).fill(INF);
+
+    for (let i = 0; i < res.explore.length; i++) {
+      const idx = res.explore[i][0] * cols + res.explore[i][1];
+      if (expStep[idx] === INF) {
+        expStep[idx] = i + 1;
+        sideGrid[idx] = res.sides ? res.sides[i] : 0;
+      }
+    }
+    if (res.frontier) {
+      for (let i = 0; i < res.frontier.length; i++) {
+        const [fr, fc, d, e] = res.frontier[i];
+        const idx = fr * cols + fc;
+        discGrid[idx] = d;
+        fExpGrid[idx] = e;
+      }
+    }
+    if (res.found && res.path) {
+      for (let i = 0; i < res.path.length; i++) {
+        const idx = res.path[i][0] * cols + res.path[i][1];
+        if (pathStep[idx] === INF) pathStep[idx] = i + 1;
+      }
+    }
+    renderCache[name] = { expStep, sideGrid, discGrid, fExpGrid, pathStep };
+  });
 
   let activeAlgo = DATA.defaultAlgo;
   let isRaceView = Boolean(DATA.raceMode);
   let playbackMode = "both";
   let showFrontier = true;
-  let activeTool = "view";
   let currentStep = 0;
   let isPlaying = false;
   let timerId = null;
   let hoverCell = null;
-  let isPointerDown = false;
-  let dirtyEdit = false;
 
   const raceAlgList = DATA.algos.slice(0, 4);
   const raceCanvases = [];
 
   function getActiveResult() {
-    if (!activeAlgo || !DATA.results[activeAlgo]) return null;
-    return DATA.results[activeAlgo];
+    return (activeAlgo && DATA.results[activeAlgo]) ? DATA.results[activeAlgo] : null;
   }
 
   function getFramesForResult(res) {
@@ -412,7 +419,7 @@ export default function(component) {
     return getFramesForResult(getActiveResult());
   }
 
-  function drawGridInstance(canvasEl, pxSize, res, stepForRes, showInspectHighlight) {
+  function drawGridInstance(canvasEl, pxSize, algoName, stepForRes, showInspectHighlight) {
     const dpr = window.devicePixelRatio || 1;
     if (canvasEl.width !== pxSize * dpr) {
       canvasEl.width = pxSize * dpr;
@@ -423,8 +430,6 @@ export default function(component) {
     const ctx = canvasEl.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const rows = DATA.rows;
-    const cols = DATA.cols;
     const [sr, sc] = startPos;
     const [gr, gc] = goalPos;
     const pad = 3;
@@ -435,19 +440,24 @@ export default function(component) {
     ctx.fillStyle = DRACULA.bg;
     ctx.fillRect(0, 0, pxSize, pxSize);
 
+    const res = algoName ? DATA.results[algoName] : null;
+    const cache = algoName ? renderCache[algoName] : null;
     const total = getFramesForResult(res);
     const step = Math.max(0, Math.min(total, stepForRes));
 
     let exploreCount = 0;
     let pathCount = 0;
-    let activeTile = null;
+    let activeR = -1, activeC = -1;
     let pathHead = null;
 
     if (res) {
       const eLen = res.explore.length;
       if (playbackMode === "both") {
         exploreCount = Math.min(step, eLen);
-        if (step >= 1 && step <= eLen) activeTile = res.explore[step - 1];
+        if (step >= 1 && step <= eLen) {
+          activeR = res.explore[step - 1][0];
+          activeC = res.explore[step - 1][1];
+        }
         if (res.found && step > eLen) {
           pathCount = Math.min(res.path.length, step - eLen);
           if (pathCount > 0) pathHead = res.path[pathCount - 1];
@@ -458,67 +468,50 @@ export default function(component) {
       }
     }
 
-    const exploredSideMap = new Map();
-    if (res && exploreCount > 0) {
-      for (let i = 0; i < exploreCount; i++) {
-        const key = res.explore[i][0] + "," + res.explore[i][1];
-        const side = res.sides ? res.sides[i] : 0;
-        exploredSideMap.set(key, side);
-      }
-    }
-
-    const frontierSet = new Set();
-    if (res && showFrontier && playbackMode === "both" && exploreCount < res.explore.length && res.frontier) {
-      for (let i = 0; i < res.frontier.length; i++) {
-        const [fr, fc, disc, exp] = res.frontier[i];
-        if (disc <= exploreCount && exploreCount < exp) {
-          frontierSet.add(fr + "," + fc);
-        }
-      }
-    }
-
-    const pathSet = new Set();
-    if (res && pathCount > 0) {
-      for (let i = 0; i < pathCount; i++) {
-        pathSet.add(res.path[i][0] + "," + res.path[i][1]);
-      }
-    }
+    const lineW = Math.max(0.35, Math.min(0.9, cell * 0.04));
+    const frontierW = Math.max(1.2, cell * 0.14);
+    const frontierVisible = Boolean(cache && showFrontier && playbackMode === "both" && exploreCount < res.explore.length);
 
     for (let r = 0; r < rows; r++) {
+      const rowArr = grid[r];
+      const y = oy + r * cell;
+      const rowOffset = r * cols;
       for (let c = 0; c < cols; c++) {
         const x = ox + c * cell;
-        const y = oy + r * cell;
-        const key = r + "," + c;
-        const w = weights[r][c];
-        let fill = DRACULA.open;
-        if (grid[r][c] === 1) fill = DRACULA.wall;
-        else if (w >= 8) fill = DRACULA.water;
-        else if (w >= 4) fill = DRACULA.mud;
+        const idx = rowOffset + c;
+        const isWall = rowArr[c] === 1;
+        let fill = isWall ? DRACULA.wall : DRACULA.open;
+        let isFrontier = false;
 
-        if (exploredSideMap.has(key) && grid[r][c] === 0) {
-          fill = exploredSideMap.get(key) === 1 ? DRACULA.exploredBwd : DRACULA.exploredFwd;
+        if (cache && !isWall) {
+          if (cache.expStep[idx] <= exploreCount) {
+            fill = cache.sideGrid[idx] === 1 ? DRACULA.exploredBwd : DRACULA.exploredFwd;
+          } else if (frontierVisible && cache.discGrid[idx] <= exploreCount && exploreCount < cache.fExpGrid[idx]) {
+            isFrontier = true;
+          }
+          if (cache.pathStep[idx] <= pathCount) {
+            fill = DRACULA.pathCell;
+          }
         }
-        if (pathSet.has(key)) fill = DRACULA.pathCell;
-        if (activeTile && activeTile[0] === r && activeTile[1] === c) fill = DRACULA.active;
+        if (r === activeR && c === activeC) fill = DRACULA.active;
         if (r === sr && c === sc) fill = DRACULA.start;
         if (r === gr && c === gc) fill = DRACULA.goal;
 
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, cell, cell);
 
-        if (frontierSet.has(key) && grid[r][c] === 0 && !pathSet.has(key)) {
+        if (isFrontier && fill !== DRACULA.pathCell) {
           ctx.strokeStyle = DRACULA.frontierRing;
-          ctx.lineWidth = Math.max(1.2, cell * 0.14);
+          ctx.lineWidth = frontierW;
           ctx.strokeRect(x + 1, y + 1, Math.max(1, cell - 2), Math.max(1, cell - 2));
         } else {
           ctx.strokeStyle = DRACULA.border;
-          ctx.lineWidth = Math.max(0.35, Math.min(0.9, cell * 0.04));
+          ctx.lineWidth = lineW;
           ctx.strokeRect(x, y, cell, cell);
         }
       }
     }
 
-    // Highlight meet point when bidirectional frontiers collide
     if (res && res.meet && playbackMode === "both" && exploreCount >= res.explore.length) {
       const [mr, mc] = res.meet;
       ctx.strokeStyle = DRACULA.active;
@@ -526,10 +519,10 @@ export default function(component) {
       ctx.strokeRect(ox + mc * cell + 1, oy + mr * cell + 1, cell - 2, cell - 2);
     }
 
-    if (activeTile) {
+    if (activeR >= 0) {
       ctx.strokeStyle = DRACULA.pathCell;
       ctx.lineWidth = Math.max(1.5, cell * 0.14);
-      ctx.strokeRect(ox + activeTile[1] * cell + 1, oy + activeTile[0] * cell + 1, cell - 2, cell - 2);
+      ctx.strokeRect(ox + activeC * cell + 1, oy + activeR * cell + 1, cell - 2, cell - 2);
     }
 
     if (res && pathCount > 1) {
@@ -555,7 +548,6 @@ export default function(component) {
       ctx.fill();
     }
 
-    // Hover inspector highlight
     if (showInspectHighlight && hoverCell) {
       const [hr, hc] = hoverCell;
       ctx.strokeStyle = "#ffffff";
@@ -579,12 +571,9 @@ export default function(component) {
     scrubber.value = currentStep;
     stepCounter.textContent = currentStep + " / " + total;
 
-    // Hover inspector overrides right metrics pill cleanly when hovering in single view
     if (!isRaceView && hoverCell) {
       const [hr, hc] = hoverCell;
-      const isWall = grid[hr][hc] === 1;
-      const w = weights[hr][hc];
-      const tLabel = isWall ? "Wall" : (w >= 8 ? "Water(8)" : (w >= 4 ? "Mud(4)" : "Open(1)"));
+      const tLabel = grid[hr][hc] === 1 ? "Wall" : "Open";
       let extra = "";
       if (res && res.costs && res.costs[hr + "," + hc]) {
         const [g, h, f] = res.costs[hr + "," + hc];
@@ -598,21 +587,18 @@ export default function(component) {
       metricsText.textContent = done.length > 0 ? ("Finished: " + done.length + " / " + raceAlgList.length) : "Racing " + raceAlgList.length + " solvers...";
     } else if (res) {
       metricsText.style.color = DRACULA.start;
-      metricsText.textContent = res.found ? ("Cost: " + res.pathCost + " | Explored: " + res.nodesExpanded + " | " + res.timeMs + "ms") : ("Unsolvable | Explored: " + res.nodesExpanded);
+      metricsText.textContent = res.found ? ("Steps: " + res.pathCost + " | Explored: " + res.nodesExpanded + " | " + res.timeMs + "ms") : ("Unsolvable | Explored: " + res.nodesExpanded);
     } else {
-      metricsText.textContent = "Paint walls/terrain or click Solve Maze";
+      metricsText.textContent = "Hover grid to inspect cells";
       metricsText.style.color = DRACULA.border;
     }
 
-    if (activeTool !== "view") {
-      statusText.textContent = "🖌️ Paint Tool Active (" + activeTool.toUpperCase() + ") — Click/drag on grid, then click Solve Maze";
-      statusText.style.color = "#ffb86c";
-    } else if (!res && !isRaceView) {
-      statusText.textContent = "Ready (" + DATA.rows + "×" + DATA.cols + " Solvable Grid) — Hover cells or Paint";
+    if (!res && !isRaceView) {
+      statusText.textContent = "Ready (" + rows + "×" + cols + " Solvable Grid) — Click Solve Maze";
       statusText.style.color = DRACULA.agent;
     } else if (isRaceView) {
       if (currentStep === 0) statusText.textContent = "🏁 2×2 Race Ready — Press Play!";
-      else if (currentStep >= total) statusText.textContent = "🏆 Race Complete! Compare paths & explored area";
+      else if (currentStep >= total) statusText.textContent = "🏆 Race Complete! Click any grid to inspect";
       else statusText.textContent = "🏁 Synchronized Race Step " + currentStep + " / " + total;
       statusText.style.color = currentStep >= total ? DRACULA.start : DRACULA.pathCell;
     } else if (!res.found) {
@@ -622,7 +608,7 @@ export default function(component) {
       statusText.textContent = "⏮️ " + res.name + ": Start State";
       statusText.style.color = DRACULA.agent;
     } else if (currentStep >= total) {
-      statusText.textContent = "✅ " + res.name + ": Complete! Optimal Cost = " + res.pathCost;
+      statusText.textContent = "✅ " + res.name + ": Complete! Path = " + res.pathCost + " steps";
       statusText.style.color = DRACULA.start;
     } else if (playbackMode === "both" && currentStep <= res.explore.length) {
       const [er, ec] = res.explore[currentStep - 1];
@@ -646,33 +632,28 @@ export default function(component) {
       singleCanvas.style.display = "none";
       raceGrid.style.display = "grid";
 
-      // Rank finishers by fewest explore+path frames
       let minBestFrames = Infinity;
-      let bestCost = Infinity;
       raceAlgList.forEach(n => {
         const r = DATA.results[n];
-        if (r && r.found) {
-          minBestFrames = Math.min(minBestFrames, getFramesForResult(r));
-          bestCost = Math.min(bestCost, r.pathCost);
-        }
+        if (r && r.found) minBestFrames = Math.min(minBestFrames, getFramesForResult(r));
       });
 
       raceCanvases.forEach(({ name, card, canvas, statEl }) => {
         const r = DATA.results[name];
         const fTotal = getFramesForResult(r);
         const stepForR = Math.min(currentStep, fTotal);
-        drawGridInstance(canvas, 174, r, stepForR, false);
+        drawGridInstance(canvas, 224, name, stepForR, false);
         const finished = r && r.found && stepForR >= fTotal;
         const isFirst = finished && fTotal === minBestFrames;
         card.classList.toggle("winner", isFirst);
         if (!r || !r.found) statEl.textContent = "No path";
-        else if (finished) statEl.textContent = (isFirst ? "🏆 " : "✅ ") + "Cost:" + r.pathCost + " | " + r.nodesExpanded + "n";
+        else if (finished) statEl.textContent = (isFirst ? "🏆 " : "✅ ") + r.pathCost + "s | " + r.nodesExpanded + "n";
         else statEl.textContent = stepForR + "/" + fTotal;
       });
     } else {
       raceGrid.style.display = "none";
       singleCanvas.style.display = "block";
-      drawGridInstance(singleCanvas, DATA.canvasPx, getActiveResult(), currentStep, true);
+      drawGridInstance(singleCanvas, DATA.canvasPx, activeAlgo, currentStep, true);
     }
     updateStatusBar();
   }
@@ -716,92 +697,21 @@ export default function(component) {
     scheduleNextTick();
   }
 
-  // Paint & Hover Handlers on singleCanvas
-  function eventToCell(e) {
+  const onMouseMove = (e) => {
     const rect = singleCanvas.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const rows = DATA.rows, cols = DATA.cols;
     const pad = 3;
     const cell = Math.min((DATA.canvasPx - pad * 2) / cols, (DATA.canvasPx - pad * 2) / rows);
     const ox = (DATA.canvasPx - cell * cols) / 2;
     const oy = (DATA.canvasPx - cell * rows) / 2;
-    const c = Math.floor((px - ox) / cell);
-    const r = Math.floor((py - oy) / cell);
-    if (r >= 0 && r < rows && c >= 0 && c < cols) return [r, c];
-    return null;
-  }
-
-  function applyPaintAt(cell) {
-    if (!cell || activeTool === "view") return;
-    const [r, c] = cell;
-    const isStart = r === startPos[0] && c === startPos[1];
-    const isGoal = r === goalPos[0] && c === goalPos[1];
-
-    if (activeTool === "start") {
-      if (!isGoal) {
-        startPos = [r, c];
-        grid[r][c] = 0;
-        weights[r][c] = 1;
-        dirtyEdit = true;
-      }
-    } else if (activeTool === "goal") {
-      if (!isStart) {
-        goalPos = [r, c];
-        grid[r][c] = 0;
-        weights[r][c] = 1;
-        dirtyEdit = true;
-      }
-    } else if (!isStart && !isGoal) {
-      if (activeTool === "wall") { grid[r][c] = 1; weights[r][c] = 1; }
-      else if (activeTool === "mud") { grid[r][c] = 0; weights[r][c] = 4; }
-      else if (activeTool === "water") { grid[r][c] = 0; weights[r][c] = 8; }
-      else if (activeTool === "open") { grid[r][c] = 0; weights[r][c] = 1; }
-      dirtyEdit = true;
-    }
-    renderFrame();
-  }
-
-  const onPointerDown = (e) => {
-    if (activeTool === "view") return;
-    stopPlayback();
-    isPointerDown = true;
-    applyPaintAt(eventToCell(e));
-  };
-  const onPointerMove = (e) => {
-    const cell = eventToCell(e);
-    hoverCell = cell;
-    if (isPointerDown && activeTool !== "view") {
-      applyPaintAt(cell);
-    } else {
-      renderFrame();
-    }
-  };
-  const onPointerUp = () => {
-    if (isPointerDown && dirtyEdit) {
-      dirtyEdit = false;
-      isPointerDown = false;
-      setTriggerValue("maze_edit", {
-        grid: grid,
-        weights: weights,
-        start: startPos,
-        goal: goalPos
-      });
-    }
-    isPointerDown = false;
-  };
-  const onPointerLeave = () => {
-    hoverCell = null;
-    onPointerUp();
+    const c = Math.floor((e.clientX - rect.left - ox) / cell);
+    const r = Math.floor((e.clientY - rect.top - oy) / cell);
+    hoverCell = (r >= 0 && r < rows && c >= 0 && c < cols) ? [r, c] : null;
     renderFrame();
   };
+  const onMouseLeave = () => { hoverCell = null; renderFrame(); };
+  singleCanvas.addEventListener("mousemove", onMouseMove);
+  singleCanvas.addEventListener("mouseleave", onMouseLeave);
 
-  singleCanvas.addEventListener("pointerdown", onPointerDown);
-  singleCanvas.addEventListener("pointermove", onPointerMove);
-  singleCanvas.addEventListener("pointerup", onPointerUp);
-  singleCanvas.addEventListener("pointerleave", onPointerLeave);
-
-  // Build 2x2 Race Mini-Canvases
   raceGrid.innerHTML = "";
   if (raceAlgList.length > 1) {
     btnRaceToggle.style.display = "inline-block";
@@ -860,10 +770,6 @@ export default function(component) {
     isRaceView = !isRaceView;
     btnRaceToggle.classList.toggle("btn-active", isRaceView);
     algoSelect.style.display = isRaceView ? "none" : "inline-block";
-    if (isRaceView) {
-      activeTool = "view";
-      toolButtons.forEach(b => b.classList.toggle("btn-paint-active", b.dataset.tool === "view"));
-    }
     renderFrame();
   };
 
@@ -890,20 +796,6 @@ export default function(component) {
     btnFrontier.classList.toggle("btn-active", showFrontier);
     renderFrame();
   };
-
-  toolButtons.forEach(btn => {
-    btn.onclick = () => {
-      activeTool = btn.dataset.tool;
-      toolButtons.forEach(b => b.classList.toggle("btn-paint-active", b === btn));
-      if (activeTool !== "view" && isRaceView) {
-        isRaceView = false;
-        btnRaceToggle.classList.remove("btn-active");
-        if (DATA.algos.length > 1) algoSelect.style.display = "inline-block";
-      }
-      singleCanvas.style.cursor = activeTool === "view" ? "crosshair" : "cell";
-      renderFrame();
-    };
-  });
 
   speedSlider.oninput = () => {
     const idx = parseInt(speedSlider.value, 10);
@@ -933,10 +825,8 @@ export default function(component) {
 
   return () => {
     if (timerId !== null) clearTimeout(timerId);
-    singleCanvas.removeEventListener("pointerdown", onPointerDown);
-    singleCanvas.removeEventListener("pointermove", onPointerMove);
-    singleCanvas.removeEventListener("pointerup", onPointerUp);
-    singleCanvas.removeEventListener("pointerleave", onPointerLeave);
+    singleCanvas.removeEventListener("mousemove", onMouseMove);
+    singleCanvas.removeEventListener("mouseleave", onMouseLeave);
   };
 }
 """
@@ -951,16 +841,16 @@ _PUZZLE_CSS = """
 .toolbar {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: 5px; width: 100%; background: #21222c; border: 1px solid #44475a;
-  border-radius: 6px; padding: 4px 8px;
+  border-radius: 6px; padding: 5px 8px;
 }
 .row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 select {
   background: #282a36; color: #f8f8f2; border: 1px solid #6272a4;
-  border-radius: 4px; padding: 2px 6px; font-size: 11.5px; font-weight: 600; outline: none;
+  border-radius: 4px; padding: 3px 6px; font-size: 12px; font-weight: 600; outline: none;
 }
 .btn {
   background: #bd93f9; color: #282a36; border: none; border-radius: 4px;
-  padding: 4px 9px; font-size: 11.5px; font-weight: 700; cursor: pointer; line-height: 1.2;
+  padding: 4px 9px; font-size: 12px; font-weight: 700; cursor: pointer; line-height: 1.2;
 }
 .btn:hover:not(:disabled) { background: #ff79c6; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -972,26 +862,26 @@ input[type="range"] { accent-color: #bd93f9; cursor: pointer; }
 .status-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; background: #21222c; border: 1px solid #44475a;
-  border-left: 4px solid #ff79c6; border-radius: 5px; padding: 4px 9px; font-size: 11.5px;
+  border-left: 4px solid #ff79c6; border-radius: 5px; padding: 4px 9px; font-size: 12px;
 }
 .action-text { color: #ff79c6; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.metrics-text { color: #50fa7b; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.metrics-text { color: #50fa7b; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .scrubber-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0 2px; }
 .scrubber { flex: 1; height: 8px; cursor: pointer; }
 .step-counter { font-size: 11.5px; color: #f8f8f2; min-width: 68px; text-align: right; font-variant-numeric: tabular-nums; }
 .single-canvas { background: #282a36; border: 1px solid #6272a4; border-radius: 8px; display: block; cursor: pointer; }
 .race-grid {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
-  width: 100%; max-width: 480px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  width: 100%; max-width: 560px;
 }
 .race-card {
-  background: #21222c; border: 1px solid #44475a; border-radius: 6px; padding: 4px;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: #21222c; border: 1px solid #44475a; border-radius: 6px; padding: 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
 }
 .race-card.winner { border-color: #50fa7b; box-shadow: 0 0 0 1px #50fa7b55; }
-.race-head { display: flex; justify-content: space-between; width: 100%; font-size: 11px; font-weight: 700; }
+.race-head { display: flex; justify-content: space-between; width: 100%; font-size: 11.5px; font-weight: 700; }
 .race-title { color: #8be9fd; }
-.race-stat { color: #f1fa8c; font-size: 10.5px; }
+.race-stat { color: #f1fa8c; font-size: 11px; }
 .race-canvas { background: #282a36; border: 1px solid #44475a; border-radius: 5px; display: block; cursor: pointer; }
 """
 
@@ -1085,8 +975,7 @@ export default function(component) {
   const raceCanvases = [];
 
   function getActiveResult() {
-    if (!activeAlgo || !DATA.results[activeAlgo]) return null;
-    return DATA.results[activeAlgo];
+    return (activeAlgo && DATA.results[activeAlgo]) ? DATA.results[activeAlgo] : null;
   }
 
   function getMaxForResult(res) {
@@ -1128,7 +1017,7 @@ export default function(component) {
     const ctx = canvasEl.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const pad = Math.max(6, Math.round(pxSize * 0.03));
+    const pad = Math.max(8, Math.round(pxSize * 0.03));
     const cell = (pxSize - pad * 2) / dim;
     const inset = Math.max(3, Math.round(cell * 0.06));
     const tileW = cell - inset * 2;
@@ -1153,12 +1042,12 @@ export default function(component) {
       const r = Math.floor(idx / dim), c = idx % dim;
       const x = pad + c * cell + inset, y = pad + r * cell + inset;
       if (board[idx] === 0 || (movedTile !== null && idx === toIdx && slideProgress < 1.0)) {
-        drawRoundedRect(ctx, x, y, tileW, tileW, 8);
+        drawRoundedRect(ctx, x, y, tileW, tileW, 10);
         ctx.fillStyle = DRACULA.blank;
         ctx.fill();
         ctx.setLineDash([4, 3]);
         ctx.strokeStyle = DRACULA.comment;
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = 1.8;
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -1179,15 +1068,15 @@ export default function(component) {
 
       const x = pad + c * cell + inset, y = pad + r * cell + inset;
       const isGoalTile = DATA.goal[idx] === val && (!isMoved || slideProgress >= 1.0);
-      drawRoundedRect(ctx, x, y, tileW, tileW, 8);
+      drawRoundedRect(ctx, x, y, tileW, tileW, 10);
       ctx.fillStyle = isMoved ? DRACULA.pink : DRACULA.tile;
       ctx.fill();
       ctx.strokeStyle = isMoved ? DRACULA.yellow : (isGoalTile ? DRACULA.green : DRACULA.border);
-      ctx.lineWidth = isMoved ? 3 : 1.8;
+      ctx.lineWidth = isMoved ? 3.2 : 2.0;
       ctx.stroke();
 
       ctx.fillStyle = isMoved ? DRACULA.bg : DRACULA.cyan;
-      ctx.font = "bold " + Math.floor(tileW * 0.42) + "px sans-serif";
+      ctx.font = "bold " + Math.floor(tileW * 0.43) + "px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(String(val), x + tileW / 2, y + tileW / 2 + 1);
@@ -1212,7 +1101,7 @@ export default function(component) {
         const r = DATA.results[name];
         const mS = getMaxForResult(r);
         const sR = Math.min(currentStep, mS);
-        drawBoardInstance(canvas, 168, r, sR, sR === currentStep ? slideProgress : 1.0);
+        drawBoardInstance(canvas, 214, r, sR, sR === currentStep ? slideProgress : 1.0);
         const done = r && r.found && sR >= mS;
         const win = done && mS === minBest;
         card.classList.toggle("winner", win);
@@ -1232,7 +1121,7 @@ export default function(component) {
 
     const res = getActiveResult();
     if (isRaceView) {
-      actionText.textContent = currentStep >= maxStep ? "🏆 Puzzle Race Complete!" : ("🏁 Racing Solvers — Move " + currentStep + " / " + maxStep);
+      actionText.textContent = currentStep >= maxStep ? "🏆 Puzzle Race Complete! Click any board to zoom" : ("🏁 Racing Solvers — Move " + currentStep + " / " + maxStep);
       actionText.style.color = currentStep >= maxStep ? DRACULA.green : DRACULA.yellow;
       metricsText.textContent = raceAlgList.length + " solvers synced";
     } else if (!res) {
@@ -1312,11 +1201,10 @@ export default function(component) {
     }, Math.min(300, getDelay()));
   }
 
-  // Click-to-slide manual tile play when user clicks an adjacent tile on initial/unsolved board
   singleCanvas.onclick = (e) => {
     if (isPlaying || DATA.algos.length > 0) return;
     const rect = singleCanvas.getBoundingClientRect();
-    const pad = Math.max(6, Math.round(DATA.canvasPx * 0.03));
+    const pad = Math.max(8, Math.round(DATA.canvasPx * 0.03));
     const cell = (DATA.canvasPx - pad * 2) / dim;
     const c = Math.floor((e.clientX - rect.left - pad) / cell);
     const r = Math.floor((e.clientY - rect.top - pad) / cell);
@@ -1462,13 +1350,10 @@ def build_maze_animator_html(
     autoplay: bool = False,
     instant: bool = False,
     race_mode: bool = False,
-    canvas_px: int = 365,
+    canvas_px: int = 460,
     run_id: int = 0,
 ) -> str:
-    """
-    Standalone HTML document wrapper around the maze animator component.
-    Useful for unit testing payload serialization and standalone embedding.
-    """
+    """Standalone HTML document wrapper around the maze animator component."""
     data_json = _safe_json(
         build_maze_payload(
             maze=maze,
@@ -1499,12 +1384,10 @@ def build_puzzle_animator_html(
     autoplay: bool = False,
     instant: bool = False,
     race_mode: bool = False,
-    canvas_px: int = 330,
+    canvas_px: int = 440,
     run_id: int = 0,
 ) -> str:
-    """
-    Standalone HTML document wrapper around the sliding puzzle animator component.
-    """
+    """Standalone HTML document wrapper around the sliding puzzle animator component."""
     data_json = _safe_json(
         build_puzzle_payload(
             start_state=start_state,

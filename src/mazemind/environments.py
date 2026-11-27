@@ -73,38 +73,26 @@ class GridMaze(Environment):
     States are represented as (row, col) tuples.
     """
 
-    # 4-directional moves: Up, Down, Left, Right
+    # 4-directional moves: Up, Down, Left, Right (step cost = 1)
     DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-    TERRAIN_OPEN = 1
-    TERRAIN_MUD = 4
-    TERRAIN_WATER = 8
 
     def __init__(
         self,
         grid: np.ndarray,
         start: Optional[Tuple[int, int]] = None,
         goal: Optional[Tuple[int, int]] = None,
-        weights: Optional[np.ndarray] = None,
     ):
-        """
-        Initialize GridMaze with a 2D integer NumPy array and optional terrain step weights.
-        """
+        """Initialize GridMaze with a 2D integer NumPy array (0=open, 1=wall)."""
         self.grid = np.array(grid, dtype=np.int32)
         self.rows, self.cols = self.grid.shape
         self.start: Tuple[int, int] = start if start is not None else (0, 0)
         self.goal: Tuple[int, int] = (
             goal if goal is not None else (self.rows - 1, self.cols - 1)
         )
-        if weights is not None:
-            self.weights = np.maximum(1, np.array(weights, dtype=np.int32))
-        else:
-            self.weights = np.ones((self.rows, self.cols), dtype=np.int32)
 
-        # Ensure start and goal are open with unit step weight
+        # Ensure start and goal are open
         self.grid[self.start[0], self.start[1]] = 0
         self.grid[self.goal[0], self.goal[1]] = 0
-        self.weights[self.start[0], self.start[1]] = 1
-        self.weights[self.goal[0], self.goal[1]] = 1
 
     def get_start_state(self) -> Tuple[int, int]:
         return self.start
@@ -120,30 +108,19 @@ class GridMaze(Environment):
         return 0 <= r < self.rows and 0 <= c < self.cols and self.grid[r, c] == 0
 
     def get_neighbors(self, state: Tuple[int, int]) -> List[Tuple[Tuple[int, int], int]]:
-        """Returns reachable open adjacent cells with their entering terrain cost."""
+        """Returns reachable open adjacent cells with unit step cost 1."""
         r, c = state
+        rows, cols, grid = self.rows, self.cols, self.grid
         neighbors: List[Tuple[Tuple[int, int], int]] = []
-        for dr, dc in self.DIRECTIONS:
-            nr, nc = r + dr, c + dc
-            if self.is_valid_cell(nr, nc):
-                neighbors.append(((nr, nc), int(self.weights[nr, nc])))
+        if r > 0 and grid[r - 1, c] == 0:
+            neighbors.append(((r - 1, c), 1))
+        if r + 1 < rows and grid[r + 1, c] == 0:
+            neighbors.append(((r + 1, c), 1))
+        if c > 0 and grid[r, c - 1] == 0:
+            neighbors.append(((r, c - 1), 1))
+        if c + 1 < cols and grid[r, c + 1] == 0:
+            neighbors.append(((r, c + 1), 1))
         return neighbors
-
-    def get_reverse_neighbors(
-        self, state: Tuple[int, int]
-    ) -> List[Tuple[Tuple[int, int], int]]:
-        """
-        Returns predecessor open cells along with the forward edge cost
-        of entering `state` from `prev` (i.e. weights[state]).
-        """
-        r, c = state
-        enter_cost = int(self.weights[r, c])
-        preds: List[Tuple[Tuple[int, int], int]] = []
-        for dr, dc in self.DIRECTIONS:
-            nr, nc = r + dr, c + dc
-            if self.is_valid_cell(nr, nc):
-                preds.append(((nr, nc), enter_cost))
-        return preds
 
     def heuristic(
         self,
@@ -153,7 +130,7 @@ class GridMaze(Environment):
     ) -> float:
         """
         Computes admissible distance heuristic from state to target (defaults to goal).
-        - 'manhattan': |r - gr| + |c - gc| (Admissible since min step weight >= 1)
+        - 'manhattan': |r - gr| + |c - gc|
         - 'euclidean': sqrt((r - gr)^2 + (c - gc)^2)
         """
         r, c = state
@@ -165,9 +142,12 @@ class GridMaze(Environment):
         return float(dr + dc)
 
     def get_stats(self) -> Dict[str, Any]:
-        """Returns topological, geometric, and terrain-cost characteristics of the maze."""
-        total_cells = self.rows * self.cols
-        wall_cells = int(np.sum(self.grid == 1))
+        """Returns vectorized topological and geometric characteristics of the maze."""
+        rows, cols = self.rows, self.cols
+        total_cells = rows * cols
+        open_mask = self.grid == 0
+        open_cells = int(np.sum(open_mask))
+        wall_cells = total_cells - open_cells
         wall_density = float(wall_cells / total_cells) if total_cells > 0 else 0.0
 
         sr, sc = self.start
@@ -175,49 +155,32 @@ class GridMaze(Environment):
         manhattan_dist = float(abs(sr - gr) + abs(sc - gc))
         euclidean_dist = float(math.sqrt((sr - gr) ** 2 + (sc - gc) ** 2))
 
-        open_cell_coords = [
-            (r, c)
-            for r in range(self.rows)
-            for c in range(self.cols)
-            if self.grid[r, c] == 0
-        ]
+        # Vectorized neighbor count for all open cells
+        neighbor_counts = np.zeros((rows, cols), dtype=np.int32)
+        if rows > 1:
+            neighbor_counts[1:, :] += open_mask[:-1, :]
+            neighbor_counts[:-1, :] += open_mask[1:, :]
+        if cols > 1:
+            neighbor_counts[:, 1:] += open_mask[:, :-1]
+            neighbor_counts[:, :-1] += open_mask[:, 1:]
 
-        dead_end_count = 0
-        open_neighbor_counts: List[int] = []
-
-        for r, c in open_cell_coords:
-            open_n = 0
-            for dr, dc in self.DIRECTIONS:
-                nr, nc = r + dr, c + dc
-                if self.is_valid_cell(nr, nc):
-                    open_n += 1
-            open_neighbor_counts.append(open_n)
-            if open_n == 1:
-                dead_end_count += 1
-
+        open_nbr_vals = neighbor_counts[open_mask]
+        dead_end_count = int(np.sum(open_nbr_vals == 1))
         avg_open_neighbors = (
-            float(np.mean(open_neighbor_counts)) if open_neighbor_counts else 0.0
-        )
-        weighted_cells = sum(
-            1 for r, c in open_cell_coords if int(self.weights[r, c]) > 1
-        )
-        max_step_cost = (
-            max((int(self.weights[r, c]) for r, c in open_cell_coords), default=1)
+            float(np.mean(open_nbr_vals)) if open_nbr_vals.size > 0 else 0.0
         )
 
         return {
-            "rows": int(self.rows),
-            "cols": int(self.cols),
+            "rows": int(rows),
+            "cols": int(cols),
             "total_cells": int(total_cells),
-            "open_cells": int(len(open_cell_coords)),
+            "open_cells": int(open_cells),
             "wall_cells": int(wall_cells),
             "wall_density": round(wall_density, 4),
             "manhattan_dist": round(manhattan_dist, 4),
             "euclidean_dist": round(euclidean_dist, 4),
             "dead_end_count": int(dead_end_count),
             "avg_open_neighbors": round(avg_open_neighbors, 4),
-            "weighted_cells": int(weighted_cells),
-            "max_step_cost": int(max_step_cost),
         }
 
     def extract_features(self) -> Dict[str, Any]:
@@ -230,7 +193,6 @@ class GridMaze(Environment):
             grid=self.grid.copy(),
             start=self.start,
             goal=self.goal,
-            weights=self.weights.copy(),
         )
 
     @staticmethod
@@ -392,35 +354,6 @@ class GridMaze(Environment):
                 add_frontier(r, c)
         return grid
 
-    @staticmethod
-    def _apply_weighted_terrain_patches(
-        grid: np.ndarray,
-        start: Tuple[int, int],
-        goal: Tuple[int, int],
-        rng: np.random.Generator,
-    ) -> np.ndarray:
-        """Applies clusters of Mud (cost 4) and Water (cost 8) to open cells."""
-        rows, cols = grid.shape
-        weights = np.ones((rows, cols), dtype=np.int32)
-
-        # Place natural cost blobs near interior so UCS/A* can route around them
-        num_blobs = max(3, (rows * cols) // 28)
-        for _ in range(num_blobs):
-            cr = int(rng.integers(0, rows))
-            cc = int(rng.integers(0, cols))
-            radius = int(rng.integers(1, max(2, min(rows, cols) // 6) + 1))
-            cost = GridMaze.TERRAIN_WATER if rng.random() < 0.45 else GridMaze.TERRAIN_MUD
-            for dr in range(-radius, radius + 1):
-                for dc in range(-radius, radius + 1):
-                    if dr * dr + dc * dc <= radius * radius:
-                        nr, nc = cr + dr, cc + dc
-                        if 0 <= nr < rows and 0 <= nc < cols and grid[nr, nc] == 0:
-                            weights[nr, nc] = max(int(weights[nr, nc]), cost)
-
-        weights[start] = 1
-        weights[goal] = 1
-        return weights
-
     @classmethod
     def generate_solvable(
         cls,
@@ -431,19 +364,16 @@ class GridMaze(Environment):
         seed: Optional[int] = None,
         start: Optional[Tuple[int, int]] = None,
         goal: Optional[Tuple[int, int]] = None,
-        weighted: bool = False,
     ) -> "GridMaze":
         """
-        Generates a 2D GridMaze matching the requested preset, density, and optional
-        weighted terrain that is mathematically guaranteed solvable from start to goal.
+        Generates a 2D GridMaze matching the requested preset and obstacle density
+        that is mathematically guaranteed solvable from start to goal.
         """
         rng = np.random.default_rng(seed)
         s = start if start is not None else (0, 0)
         g = goal if goal is not None else (rows - 1, cols - 1)
         clamped_density = max(0.0, min(0.95, float(density)))
-
         preset_lower = preset.lower()
-        is_weighted = weighted or ("weighted" in preset_lower) or ("mud" in preset_lower)
 
         if "open" in preset_lower:
             grid = np.zeros((rows, cols), dtype=np.int32)
@@ -463,17 +393,16 @@ class GridMaze(Environment):
         elif "prim" in preset_lower:
             grid = cls._generate_prims_maze(rows, cols, s, rng)
         else:
-            effective_density = clamped_density * 0.65 if is_weighted else clamped_density
             grid = None
             for _ in range(12):
-                candidate = (rng.random((rows, cols)) < effective_density).astype(np.int32)
+                candidate = (rng.random((rows, cols)) < clamped_density).astype(np.int32)
                 candidate[s] = 0
                 candidate[g] = 0
                 if cls._is_reachable(candidate, s, g):
                     grid = candidate
                     break
             if grid is None:
-                base = (rng.random((rows, cols)) < effective_density).astype(np.int32)
+                base = (rng.random((rows, cols)) < clamped_density).astype(np.int32)
                 grid = cls._carve_minimum_path_01_bfs(base, s, g, rng)
 
         grid[s] = 0
@@ -481,12 +410,7 @@ class GridMaze(Environment):
         if not cls._is_reachable(grid, s, g):
             grid = cls._carve_minimum_path_01_bfs(grid, s, g, rng)
 
-        weights = (
-            cls._apply_weighted_terrain_patches(grid, s, g, rng)
-            if is_weighted
-            else np.ones((rows, cols), dtype=np.int32)
-        )
-        return cls(grid=grid, start=s, goal=g, weights=weights)
+        return cls(grid=grid, start=s, goal=g)
 
 
 class EightPuzzle(Environment):
@@ -651,26 +575,14 @@ class EightPuzzle(Environment):
     ) -> float:
         """
         Computes heuristic distance from state to target (defaults to goal_state):
-        - 'manhattan': Sum of Manhattan distances (admissible & consistent).
-        - 'linear_conflict': Manhattan distance + 2x linear row/col conflicts (stronger admissible).
-        - 'euclidean': Sum of Euclidean distances.
-        - 'misplaced': Count of non-zero tiles not in their target position.
+        - 'manhattan': Sum of Manhattan distances of all numbered tiles (admissible & consistent).
+        - 'euclidean': Sum of Euclidean distances of all numbered tiles.
         """
         target_state = tuple(target) if target is not None else self.goal_state
-        n_cells = self.dim * self.dim
-
-        if metric == "misplaced":
-            return float(
-                sum(
-                    1
-                    for i in range(n_cells)
-                    if state[i] != 0 and state[i] != target_state[i]
-                )
-            )
-
         goal_positions = self._get_goal_positions(target_state)
         total_dist = 0.0
         dim = self.dim
+        use_euclidean = metric == "euclidean"
 
         for idx, val in enumerate(state):
             if val != 0:
@@ -678,40 +590,10 @@ class EightPuzzle(Environment):
                 goal_r, goal_c = goal_positions[val]
                 dr = abs(cur_r - goal_r)
                 dc = abs(cur_c - goal_c)
-                if metric == "euclidean":
+                if use_euclidean:
                     total_dist += math.sqrt(dr * dr + dc * dc)
                 else:
                     total_dist += dr + dc
-
-        if metric == "linear_conflict":
-            conflicts = 0
-            # Row conflicts: tiles currently in row r whose goal row is also r
-            for r in range(dim):
-                row_goals = []
-                for c in range(dim):
-                    val = state[r * dim + c]
-                    if val != 0:
-                        gr, gc = goal_positions[val]
-                        if gr == r:
-                            row_goals.append(gc)
-                for i in range(len(row_goals)):
-                    for j in range(i + 1, len(row_goals)):
-                        if row_goals[i] > row_goals[j]:
-                            conflicts += 1
-            # Column conflicts: tiles currently in col c whose goal col is also c
-            for c in range(dim):
-                col_goals = []
-                for r in range(dim):
-                    val = state[r * dim + c]
-                    if val != 0:
-                        gr, gc = goal_positions[val]
-                        if gc == c:
-                            col_goals.append(gr)
-                for i in range(len(col_goals)):
-                    for j in range(i + 1, len(col_goals)):
-                        if col_goals[i] > col_goals[j]:
-                            conflicts += 1
-            total_dist += 2 * conflicts
 
         return float(total_dist)
 
@@ -721,7 +603,6 @@ class EightPuzzle(Environment):
         solvable = self.is_solvable(self.start_state, self.goal_state)
         manhattan_h = self.heuristic(self.start_state, metric="manhattan")
         euclidean_h = self.heuristic(self.start_state, metric="euclidean")
-        misplaced_h = self.heuristic(self.start_state, metric="misplaced")
 
         return {
             "dim": int(self.dim),
@@ -729,7 +610,6 @@ class EightPuzzle(Environment):
             "is_solvable": solvable,
             "initial_manhattan": manhattan_h,
             "initial_euclidean": round(euclidean_h, 3),
-            "initial_misplaced": misplaced_h,
         }
 
     def extract_features(self) -> Dict[str, Any]:

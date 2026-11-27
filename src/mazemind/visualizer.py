@@ -50,12 +50,8 @@ def plot_maze(
     ax.set_facecolor(DRACULA["bg"])
     rows, cols = maze.rows, maze.cols
 
-    # Display grid:
-    # 0 = Open, 0.2 = Mud(4), 0.3 = Water(8), 0.45 = Explored, 0.8 = Path, 1.0 = Wall
+    # Display grid: 0 = Open, 0.45 = Explored, 0.8 = Path, 1.0 = Wall
     display_grid = np.zeros((rows, cols), dtype=np.float32)
-    if hasattr(maze, "weights"):
-        display_grid[maze.weights >= 4] = 0.2
-        display_grid[maze.weights >= 8] = 0.3
     display_grid[maze.grid == 1] = 1.0
 
     if result and result.exploration_history:
@@ -81,14 +77,12 @@ def plot_maze(
     cmap = plt.cm.colors.ListedColormap(
         [
             DRACULA["current_line"],
-            "#6e473b",
-            "#1e4d6b",
             DRACULA["purple"],
             DRACULA["yellow"],
             DRACULA["dark_wall"],
         ]
     )
-    bounds = [-0.1, 0.1, 0.25, 0.35, 0.6, 0.9, 1.1]
+    bounds = [-0.1, 0.2, 0.6, 0.9, 1.1]
     norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
 
     ax.imshow(display_grid, cmap=cmap, norm=norm, origin="upper")

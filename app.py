@@ -2,18 +2,16 @@
 MazeMind AI: Intelligent Puzzle Solver & Search Algorithm Visualizer.
 Theme: Official Dracula Theme (https://draculatheme.com/spec)
 Features:
-- Classical Search: BFS, DFS, UCS (Dijkstra), Greedy, A* & Weighted A*, Bidirectional BFS & A*
-- Environments: Weighted-Terrain 2D GridMazes (Labyrinths, Prim's, Mud/Water) + 8-Puzzle (3x3) & 15-Puzzle (4x4)
+- Classical Search: BFS, DFS, UCS (Dijkstra), Greedy, A* & Weighted A*, Bidirectional BFS
+- Environments: Guaranteed-solvable 2D GridMazes (Random, Labyrinths) & 8-Puzzle / 15-Puzzle
 - Visuals: Synchronized 2x2 Race Mode, Open Frontier Highlights, Hover (g, h, f) Cell Inspector,
-  Interactive Canvas Painting & Click-to-Slide Manual Tile Play
+  Click-to-Slide Manual Tile Play, and Large High-DPI Canvases
 """
 
 import os
 import sys
-from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -28,7 +26,6 @@ from mazemind.search_agents import (
     GreedyAgent,
     AStarAgent,
     BidirectionalBFSAgent,
-    BidirectionalAStarAgent,
 )
 from mazemind.visualizer import plot_comparison_bars
 from mazemind.web_animator import (
@@ -61,7 +58,7 @@ st.markdown(
         border-right: 1px solid #44475a;
     }
     .block-container {
-        padding-top: 0.9rem !important;
+        padding-top: 0.8rem !important;
         padding-bottom: 0.4rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
@@ -69,7 +66,7 @@ st.markdown(
     }
     header[data-testid="stHeader"] {
         background: transparent !important;
-        height: 1.8rem !important;
+        height: 1.6rem !important;
     }
     .header-bar {
         display: flex;
@@ -93,7 +90,7 @@ st.markdown(
         border-radius: 6px;
         padding: 5px 10px;
         color: #f8f8f2;
-        font-size: 0.81rem;
+        font-size: 0.82rem;
         margin-bottom: 4px;
         line-height: 1.35;
     }
@@ -121,7 +118,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Register cached Streamlit v2 interactive components
+# Register cached Streamlit v2 components
 maze_component = get_maze_component()
 puzzle_component = get_puzzle_component()
 
@@ -137,27 +134,9 @@ if "grid_density" not in st.session_state:
 if "grid_preset" not in st.session_state:
     st.session_state.grid_preset = "Random Obstacles"
 
-if "maze_weighted" not in st.session_state:
-    st.session_state.maze_weighted = False
-
 if "maze_grid" not in st.session_state:
     init_m = GridMaze.generate_solvable(15, 15, density=0.22, preset="Random Obstacles", seed=42)
     st.session_state.maze_grid = init_m.grid
-    st.session_state.maze_weights = init_m.weights
-    st.session_state.maze_start = init_m.start
-    st.session_state.maze_goal = init_m.goal
-
-if "maze_weights" not in st.session_state:
-    st.session_state.maze_weights = np.ones_like(st.session_state.maze_grid, dtype=np.int32)
-
-if "maze_start" not in st.session_state:
-    st.session_state.maze_start = (0, 0)
-
-if "maze_goal" not in st.session_state:
-    st.session_state.maze_goal = (
-        st.session_state.maze_grid.shape[0] - 1,
-        st.session_state.maze_grid.shape[1] - 1,
-    )
 
 if "search_results" not in st.session_state:
     st.session_state.search_results = {}
@@ -169,7 +148,7 @@ if "maze_instant_mode" not in st.session_state:
     st.session_state.maze_instant_mode = False
 
 if "maze_race_mode" not in st.session_state:
-    st.session_state.maze_race_mode = False
+    st.session_state.maze_race_mode = True
 
 if "maze_solve_seq" not in st.session_state:
     st.session_state.maze_solve_seq = 0
@@ -203,7 +182,7 @@ if "puzzle_instant_mode" not in st.session_state:
     st.session_state.puzzle_instant_mode = False
 
 if "puzzle_race_mode" not in st.session_state:
-    st.session_state.puzzle_race_mode = False
+    st.session_state.puzzle_race_mode = True
 
 if "puzzle_solve_seq" not in st.session_state:
     st.session_state.puzzle_solve_seq = 0
@@ -250,10 +229,10 @@ if nav_selection == "1. 2D Grid Maze Solver":
         unsafe_allow_html=True,
     )
 
-    col_ctrl, col_view = st.columns([0.92, 1.38])
+    col_ctrl, col_view = st.columns([0.85, 1.45])
 
     with col_ctrl:
-        st.markdown("##### 🗺️ Maze Layout & Terrain")
+        st.markdown("##### 🗺️ Maze Layout Controls")
 
         c_size, c_dens = st.columns(2)
         with c_size:
@@ -276,7 +255,6 @@ if nav_selection == "1. 2D Grid Maze Solver":
             "Random Obstacles",
             "Recursive Backtracker (Labyrinth)",
             "Prim's Perfect Maze",
-            "Weighted Terrain (Mud & Water)",
             "Open Room (No Walls)",
             "Center Wall Barrier",
             "Snake Labyrinth",
@@ -294,24 +272,16 @@ if nav_selection == "1. 2D Grid Maze Solver":
         with c_gen_btn:
             new_maze_clicked = st.button("🎲 New Maze", width="stretch")
 
-        add_terrain = st.checkbox(
-            "🌊 Include Mud (Cost 4) & Water (Cost 8) Terrain",
-            value=st.session_state.maze_weighted or ("Weighted" in preset),
-            help="Demonstrates why UCS & A* route around expensive terrain while BFS ignores edge costs.",
-        )
-
         params_changed = (
             dim != st.session_state.grid_size
             or abs(density - st.session_state.grid_density) > 1e-9
             or preset != st.session_state.grid_preset
-            or add_terrain != st.session_state.maze_weighted
         )
 
         if params_changed or new_maze_clicked:
             st.session_state.grid_size = dim
             st.session_state.grid_density = density
             st.session_state.grid_preset = preset
-            st.session_state.maze_weighted = add_terrain
             st.session_state.search_results = {}
             st.session_state.trigger_maze_anim = False
             st.session_state.maze_instant_mode = False
@@ -320,33 +290,28 @@ if nav_selection == "1. 2D Grid Maze Solver":
                 cols=dim,
                 density=density,
                 preset=preset,
-                weighted=add_terrain,
             )
             st.session_state.maze_grid = gen.grid
-            st.session_state.maze_weights = gen.weights
-            st.session_state.maze_start = gen.start
-            st.session_state.maze_goal = gen.goal
             if new_maze_clicked:
                 st.rerun()
 
         curr_maze = GridMaze(
             grid=st.session_state.maze_grid,
-            start=st.session_state.maze_start,
-            goal=st.session_state.maze_goal,
-            weights=st.session_state.maze_weights,
+            start=(0, 0),
+            goal=(
+                st.session_state.maze_grid.shape[0] - 1,
+                st.session_state.maze_grid.shape[1] - 1,
+            ),
         )
         stats = curr_maze.get_stats()
-        is_maze_solvable = GridMaze._is_reachable(
-            curr_maze.grid, curr_maze.start, curr_maze.goal
-        )
 
-        w_tag = f" | 🌊 {stats['weighted_cells']} weighted" if stats["weighted_cells"] > 0 else ""
-        solv_tag = "✅ Solvable" if is_maze_solvable else "🔴 Blocked (Erase walls)"
         st.markdown(
             f"""
             <div class="metric-pill">
-                📏 <b>{stats['rows']}×{stats['cols']}</b> | 🧱 <b>{stats['wall_density']*100:.1f}%</b>{w_tag} |
-                🎯 S{curr_maze.start}→G{curr_maze.goal} | <b>{solv_tag}</b>
+                📏 <b>{stats['rows']}×{stats['cols']}</b> ({stats['total_cells']} cells) |
+                🧱 <b>{stats['wall_density']*100:.1f}% walls</b> |
+                🎯 Dist: <b>{stats['manhattan_dist']:.0f}</b> |
+                ✅ <b>Guaranteed Solvable</b>
             </div>
             """,
             unsafe_allow_html=True,
@@ -359,16 +324,15 @@ if nav_selection == "1. 2D Grid Maze Solver":
             solver_selection = st.selectbox(
                 "Search Strategy:",
                 [
-                    "🏁 Race All 4 (A*, UCS, Bidir A*, BFS)",
                     "🏁 Race Classical (A*, BFS, DFS, Greedy)",
                     "A* Search",
-                    "Bidirectional A*",
                     "Bidirectional BFS",
                     "UCS (Dijkstra)",
                     "Breadth-First Search (BFS)",
                     "Depth-First Search (DFS)",
                     "Greedy Best-First Search",
                 ],
+                index=0,
             )
         with c_h:
             uses_heuristic = any(
@@ -381,7 +345,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
             )
             metric_key = "manhattan" if "Manhattan" in heuristic_choice else "euclidean"
 
-        uses_weight = any(k in solver_selection for k in ("A*", "Race All 4", "Race Classical"))
+        uses_weight = any(k in solver_selection for k in ("A*", "Race"))
         astar_weight = st.slider(
             "Weighted A* Factor w (f = g + w·h):",
             min_value=1.0,
@@ -389,7 +353,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
             value=1.0,
             step=0.25,
             disabled=not uses_weight,
-            help="w = 1.0 guarantees optimal cost; w > 1.0 speeds up search at the cost of optimality.",
+            help="w = 1.0 guarantees optimal cost; w > 1.0 speeds up search.",
         )
 
         solve_mode = st.radio(
@@ -400,23 +364,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
 
         if st.button("🚀 Solve Maze", type="primary", width="stretch"):
             w_tag_str = f" (w={astar_weight:.2g})" if astar_weight > 1.0 else ""
-            if solver_selection.startswith("🏁 Race All 4"):
-                agents = [
-                    AStarAgent(
-                        name=f"A*{w_tag_str}",
-                        heuristic_metric=metric_key,
-                        weight=astar_weight,
-                    ),
-                    UCSAgent(name="UCS (Dijkstra)"),
-                    BidirectionalAStarAgent(
-                        name=f"Bidir A*{w_tag_str}",
-                        heuristic_metric=metric_key,
-                        weight=astar_weight,
-                    ),
-                    BFSAgent(name="BFS"),
-                ]
-                is_race = True
-            elif solver_selection.startswith("🏁 Race Classical"):
+            if solver_selection.startswith("🏁 Race"):
                 agents = [
                     AStarAgent(
                         name=f"A*{w_tag_str}",
@@ -432,11 +380,6 @@ if nav_selection == "1. 2D Grid Maze Solver":
                 agent_map = {
                     "A* Search": AStarAgent(
                         name=f"A* ({metric_key.title()}){w_tag_str}",
-                        heuristic_metric=metric_key,
-                        weight=astar_weight,
-                    ),
-                    "Bidirectional A*": BidirectionalAStarAgent(
-                        name=f"Bidirectional A*{w_tag_str}",
                         heuristic_metric=metric_key,
                         weight=astar_weight,
                     ),
@@ -481,24 +424,10 @@ if nav_selection == "1. 2D Grid Maze Solver":
             autoplay=autoplay_now,
             instant=instant_now,
             race_mode=st.session_state.maze_race_mode,
-            canvas_px=355,
+            canvas_px=460,
             run_id=st.session_state.maze_solve_seq,
         )
-        comp_res = maze_component(
-            data=maze_payload,
-            on_maze_edit_change=lambda: None,
-            key="maze_interactive_canvas",
-        )
-        edit_data = getattr(comp_res, "maze_edit", None)
-        if edit_data:
-            st.session_state.maze_grid = np.array(edit_data["grid"], dtype=np.int32)
-            st.session_state.maze_weights = np.array(edit_data["weights"], dtype=np.int32)
-            st.session_state.maze_start = (int(edit_data["start"][0]), int(edit_data["start"][1]))
-            st.session_state.maze_goal = (int(edit_data["goal"][0]), int(edit_data["goal"][1]))
-            st.session_state.search_results = {}
-            st.session_state.trigger_maze_anim = False
-            st.session_state.maze_instant_mode = False
-            st.rerun()
+        maze_component(data=maze_payload, key="maze_interactive_canvas")
 
     if st.session_state.search_results and len(st.session_state.search_results) > 1:
         with st.expander("📊 View Search Algorithm Comparison Table & Charts", expanded=False):
@@ -509,8 +438,7 @@ if nav_selection == "1. 2D Grid Maze Solver":
                         "Algorithm": name,
                         "Heuristic": res.heuristic_metric.title(),
                         "Status": "✅ Solved" if res.found else "❌ Failed",
-                        "Total Path Cost": res.path_cost if res.found else "N/A",
-                        "Path Steps": max(0, len(res.path) - 1) if res.found else "N/A",
+                        "Path Length": res.path_cost if res.found else "N/A",
                         "Nodes Expanded": res.nodes_expanded,
                         "Max Frontier": res.max_frontier_size,
                         "Time (ms)": f"{res.execution_time_ms:.3f}",
@@ -535,7 +463,7 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
         unsafe_allow_html=True,
     )
 
-    p_col1, p_col2 = st.columns([0.92, 1.38])
+    p_col1, p_col2 = st.columns([0.85, 1.45])
 
     with p_col1:
         st.markdown("##### ⚙️ Puzzle Dimension & Initial Board")
@@ -634,7 +562,6 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
             if scramble_clicked:
                 st.rerun()
 
-        # Custom Board Entry (supports testing intentionally unsolvable boards too!)
         with st.expander("✏️ Enter Custom Board Tiles (Optional)", expanded=False):
             expected_n = 16 if is_15 else 9
             default_txt = ",".join(str(x) for x in st.session_state.puzzle_state)
@@ -682,15 +609,15 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
             p_solver_choice = st.selectbox(
                 "Search Strategy:",
                 [
-                    "🏁 Race All 4 (A*, Bidir A*, Greedy, Bidir BFS)",
+                    "🏁 Race All 4 (A*, BFS, Greedy, Bidir BFS)",
                     "A* Search",
-                    "Bidirectional A*",
                     "Bidirectional BFS",
                     "Greedy Best-First",
                     "UCS (Dijkstra)",
                     "Breadth-First Search (BFS)",
                     "Depth-First Search (DFS)",
                 ],
+                index=0,
             )
         with p_c_heur:
             uses_p_heur = any(
@@ -698,10 +625,10 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
             )
             p_metric = st.selectbox(
                 "Heuristic:",
-                ["Linear Conflict", "Manhattan", "Euclidean", "Misplaced"],
+                ["Manhattan", "Euclidean"],
                 disabled=not uses_p_heur,
             )
-            metric_key = p_metric.lower().replace(" ", "_")
+            metric_key = p_metric.lower()
 
         uses_p_w = any(k in p_solver_choice for k in ("A*", "Race"))
         p_weight = st.slider(
@@ -735,11 +662,7 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
                         heuristic_metric=metric_key,
                         weight=p_weight,
                     ),
-                    BidirectionalAStarAgent(
-                        name=f"Bidir A*{pw_tag}",
-                        heuristic_metric=metric_key,
-                        weight=p_weight,
-                    ),
+                    BFSAgent(name="BFS"),
                     GreedyAgent(name="Greedy", heuristic_metric=metric_key),
                     BidirectionalBFSAgent(name="Bidir BFS"),
                 ]
@@ -748,11 +671,6 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
                 agent_dict = {
                     "A* Search": AStarAgent(
                         name=f"A* ({p_metric}){pw_tag}",
-                        heuristic_metric=metric_key,
-                        weight=p_weight,
-                    ),
-                    "Bidirectional A*": BidirectionalAStarAgent(
-                        name=f"Bidir A*{pw_tag}",
                         heuristic_metric=metric_key,
                         weight=p_weight,
                     ),
@@ -798,7 +716,7 @@ elif nav_selection == "2. 8-Puzzle / 15-Puzzle Solver":
             autoplay=p_autoplay_now,
             instant=p_instant_now,
             race_mode=st.session_state.puzzle_race_mode,
-            canvas_px=340,
+            canvas_px=440,
             run_id=st.session_state.puzzle_solve_seq,
         )
         p_comp_res = puzzle_component(
@@ -932,7 +850,7 @@ elif nav_selection == "3. Algorithm Theory & Complexity":
             "Evaluation": "g(n) = depth(n)",
             "Time": "O(b^d)",
             "Space": "O(b^d)",
-            "Optimal?": "Yes (unit cost only)",
+            "Optimal?": "Yes (unit cost)",
         },
         {
             "Algorithm": "Depth-First Search (DFS)",
@@ -944,11 +862,11 @@ elif nav_selection == "3. Algorithm Theory & Complexity":
         },
         {
             "Algorithm": "Uniform Cost Search (UCS)",
-            "Type": "Uninformed (Weighted)",
+            "Type": "Uninformed",
             "Evaluation": "g(n) = path cost",
             "Time": "O(b^(C*/ε))",
             "Space": "O(b^(C*/ε))",
-            "Optimal?": "Yes (even on mud/water)",
+            "Optimal?": "Yes",
         },
         {
             "Algorithm": "Greedy Best-First Search",
@@ -967,34 +885,34 @@ elif nav_selection == "3. Algorithm Theory & Complexity":
             "Optimal?": "Yes when w=1 & h admissible",
         },
         {
-            "Algorithm": "Bidirectional BFS / A*",
+            "Algorithm": "Bidirectional BFS",
             "Type": "Meet-in-the-Middle",
             "Evaluation": "S→ & ←G concurrently",
             "Time": "O(b^(d/2))",
             "Space": "O(b^(d/2))",
-            "Optimal?": "Yes (w=1)",
+            "Optimal?": "Yes (unit cost)",
         },
     ]
     st.dataframe(pd.DataFrame(theory_data), width="stretch", hide_index=True)
 
     st.markdown("---")
-    st.markdown("##### 2. Admissible Heuristics & Weighted Terrain")
+    st.markdown("##### 2. Admissible Heuristics & Weighted A*")
 
     col_h1, col_h2 = st.columns(2)
     with col_h1:
         st.markdown(
             r"""
-            **Manhattan Distance & Linear Conflict:**
+            **Manhattan Distance ($L_1$ Norm) & Euclidean ($L_2$ Norm):**
             $$h_{\text{Manhattan}}(n) = |r_n - r_{\text{goal}}| + |c_n - c_{\text{goal}}|$$
-            * Adding $+2$ per reversed row/column tile conflict gives **Linear Conflict**, strictly dominating Manhattan while staying 100% admissible.
+            $$h_{\text{Euclidean}}(n) = \sqrt{(r_n - r_{\text{goal}})^2 + (c_n - c_{\text{goal}})^2}$$
             """
         )
     with col_h2:
         st.markdown(
             r"""
             **Weighted A\* Tradeoff ($f(n) = g(n) + w \cdot h(n)$):**
-            * At $w = 1.0$, A\* guarantees optimal cost (even around cost-4 Mud & cost-8 Water).
-            * Increasing $w > 1.0$ trades strict optimality for dramatically faster frontier convergence.
+            * At $w = 1.0$, A\* guarantees shortest optimal paths.
+            * Increasing $w > 1.0$ trades strict optimality for faster frontier convergence.
             """
         )
 
@@ -1004,7 +922,7 @@ elif nav_selection == "3. Algorithm Theory & Complexity":
         r"""
         $$\mathrm{Inv}(S) = \sum_{1 \le i < j < W^2} [S_i > S_j \land S_i \ne 0 \land S_j \ne 0]$$
         * **Odd Width ($3\times 3$ 8-Puzzle):** $\mathrm{Inv}(S) \equiv \mathrm{Inv}(G) \pmod 2$.
-        * **Even Width ($4\times 4$ 15-Puzzle):** Vertical blank slides shift $\mathrm{Inv}$ by an odd amount, so the exact invariant pairs inversions with the blank tile's row:
+        * **Even Width ($4\times 4$ 15-Puzzle):** Vertical blank slides shift $\mathrm{Inv}$ parity, so the invariant pairs inversions with the blank tile's row:
           $$(\mathrm{Inv}(S) + r_{\text{blank}}(S)) \equiv (\mathrm{Inv}(G) + r_{\text{blank}}(G)) \pmod 2$$
         """
     )

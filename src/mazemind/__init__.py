@@ -14,7 +14,6 @@ from .search_agents import (
     GreedyAgent,
     AStarAgent,
     BidirectionalBFSAgent,
-    BidirectionalAStarAgent,
 )
 from .web_animator import (
     build_maze_animator_html,
@@ -37,7 +36,10 @@ __all__ = [
     "GreedyAgent",
     "AStarAgent",
     "BidirectionalBFSAgent",
-    "BidirectionalAStarAgent",
     "build_maze_animator_html",
     "build_puzzle_animator_html",
+    "build_maze_payload",
+    "build_puzzle_payload",
+    "get_maze_component",
+    "get_puzzle_component",
 ]

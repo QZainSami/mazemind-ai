@@ -3,9 +3,9 @@ MazeMind AI — Native Desktop GUI Application (Dracula Theme).
 Specifications: https://draculatheme.com/spec
 
 Features:
-- Dual Problem Modes: 2D Grid Maze (with Labyrinths & Weighted Terrain) & 8-Puzzle / 15-Puzzle
-- Algorithms: BFS, DFS, UCS (Dijkstra), Greedy, A* & Weighted A*, Bidirectional BFS & A*
-- Tile-by-Tile Animation + Open Frontier & Dual-Side Bidirectional Highlights
+- Dual Problem Modes: 2D Grid Maze (Random & Labyrinths) & 8-Puzzle / 15-Puzzle
+- Algorithms: BFS, DFS, UCS (Dijkstra), Greedy, A* & Weighted A*, Bidirectional BFS
+- Tile-by-Tile Animation + Bidirectional Dual-Color Highlights
 - Replay uses Already-Solved Data Without Re-Solving; Live Speed Slider Mid-Playback
 """
 
@@ -29,7 +29,6 @@ from mazemind.search_agents import (
     GreedyAgent,
     AStarAgent,
     BidirectionalBFSAgent,
-    BidirectionalAStarAgent,
 )
 
 # Official Dracula Theme Palette (https://draculatheme.com/spec)
@@ -47,8 +46,6 @@ DRACULA = {
     "purple": "#bd93f9",
     "red": "#ff5555",
     "yellow": "#f1fa8c",
-    "mud": "#6e473b",
-    "water": "#1e4d6b",
     "dark_wall": "#191a21",
 }
 
@@ -72,7 +69,6 @@ class MazeDesktopApp:
         self.goal = (self.rows - 1, self.cols - 1)
         init_m = GridMaze.generate_solvable(self.rows, self.cols, density=self.density, seed=42)
         self.grid = init_m.grid
-        self.weights = init_m.weights
 
         self.maze_animating = False
         self.maze_paused = False
@@ -181,24 +177,12 @@ class MazeDesktopApp:
                 "Random Obstacles",
                 "Recursive Backtracker (Labyrinth)",
                 "Prim's Perfect Maze",
-                "Weighted Terrain (Mud & Water)",
                 "Open Room (No Walls)",
                 "Center Wall Barrier",
                 "Snake Labyrinth",
             ],
             state="readonly",
-        ).pack(fill=tk.X, pady=(2, 4))
-
-        self.maze_weighted_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(
-            sidebar,
-            text="🌊 Add Mud (Cost 4) & Water (Cost 8) Terrain",
-            variable=self.maze_weighted_var,
-            bg=DRACULA["current_line"],
-            fg=DRACULA["cyan"],
-            selectcolor=DRACULA["dark_wall"],
-            font=("Segoe UI", 8, "bold"),
-        ).pack(anchor="w", pady=(0, 4))
+        ).pack(fill=tk.X, pady=(2, 6))
 
         m_row = tk.Frame(sidebar, bg=DRACULA["current_line"])
         m_row.pack(fill=tk.X, pady=(0, 6))
@@ -212,7 +196,6 @@ class MazeDesktopApp:
             textvariable=self.maze_algo_var,
             values=[
                 "A* Search",
-                "Bidirectional A*",
                 "Bidirectional BFS",
                 "UCS (Dijkstra)",
                 "Breadth-First Search (BFS)",
@@ -276,7 +259,7 @@ class MazeDesktopApp:
         self.lbl_maze_status = tk.Label(kpi, text="Status: Ready", font=("Segoe UI", 10, "bold"), bg=DRACULA["current_line"], fg=DRACULA["green"])
         self.lbl_maze_status.pack(side=tk.LEFT, padx=(0, 20))
 
-        self.lbl_maze_cost = tk.Label(kpi, text="Cost: --", font=("Segoe UI", 10), bg=DRACULA["current_line"], fg=DRACULA["yellow"])
+        self.lbl_maze_cost = tk.Label(kpi, text="Path: --", font=("Segoe UI", 10), bg=DRACULA["current_line"], fg=DRACULA["yellow"])
         self.lbl_maze_cost.pack(side=tk.LEFT, padx=(0, 20))
 
         self.lbl_maze_nodes = tk.Label(kpi, text="Step: 0 / 0", font=("Segoe UI", 10), bg=DRACULA["current_line"], fg=DRACULA["cyan"])
@@ -305,7 +288,6 @@ class MazeDesktopApp:
         cell = self._coords_to_maze_cell(event.x, event.y)
         if cell and cell != self.start and cell != self.goal:
             self.grid[cell[0], cell[1]] = 1
-            self.weights[cell[0], cell[1]] = 1
             self.maze_result = None
             self.maze_history.clear()
             self.maze_path.clear()
@@ -317,7 +299,6 @@ class MazeDesktopApp:
         cell = self._coords_to_maze_cell(event.x, event.y)
         if cell and cell != self.start and cell != self.goal:
             self.grid[cell[0], cell[1]] = 0
-            self.weights[cell[0], cell[1]] = 1
             self.maze_result = None
             self.maze_history.clear()
             self.maze_path.clear()
@@ -368,7 +349,6 @@ class MazeDesktopApp:
                 y1 = offset_y + r * self.cell_size
                 x2 = x1 + self.cell_size
                 y2 = y1 + self.cell_size
-                wt = int(self.weights[r, c])
 
                 if (r, c) == self.start:
                     color = DRACULA["green"]
@@ -382,10 +362,6 @@ class MazeDesktopApp:
                     color = DRACULA["bwd_blue"] if visited_sides[(r, c)] == 1 else DRACULA["purple"]
                 elif self.grid[r, c] == 1:
                     color = DRACULA["dark_wall"]
-                elif wt >= 8:
-                    color = DRACULA["water"]
-                elif wt >= 4:
-                    color = DRACULA["mud"]
                 else:
                     color = DRACULA["current_line"]
 
@@ -423,10 +399,8 @@ class MazeDesktopApp:
             self.cols,
             density=self.density,
             preset=self.maze_preset_var.get(),
-            weighted=self.maze_weighted_var.get(),
         )
         self.grid = gen.grid
-        self.weights = gen.weights
         self.maze_result = None
         self.maze_history.clear()
         self.maze_sides = None
@@ -440,7 +414,6 @@ class MazeDesktopApp:
         self.cols = self.rows
         self.goal = (self.rows - 1, self.cols - 1)
         self.grid = np.zeros((self.rows, self.cols), dtype=np.int32)
-        self.weights = np.ones((self.rows, self.cols), dtype=np.int32)
         self.maze_result = None
         self.maze_history.clear()
         self.maze_sides = None
@@ -449,8 +422,6 @@ class MazeDesktopApp:
         self.lbl_maze_status.config(text="Status: Walls Cleared", fg=DRACULA["cyan"])
 
     def _make_maze_agent(self, algo_name: str, metric_key: str, weight: float):
-        if "Bidirectional A*" in algo_name:
-            return BidirectionalAStarAgent(heuristic_metric=metric_key, weight=weight)
         if "Bidirectional BFS" in algo_name:
             return BidirectionalBFSAgent()
         if "UCS" in algo_name:
@@ -465,7 +436,7 @@ class MazeDesktopApp:
 
     def solve_maze(self):
         self._cancel_maze_timer()
-        maze = GridMaze(grid=self.grid, start=self.start, goal=self.goal, weights=self.weights)
+        maze = GridMaze(grid=self.grid, start=self.start, goal=self.goal)
         metric_key = "manhattan" if "Manhattan" in self.maze_heur_var.get() else "euclidean"
         weight = float(self.maze_weight_scale.get())
         agent = self._make_maze_agent(self.maze_algo_var.get(), metric_key, weight)
@@ -504,11 +475,11 @@ class MazeDesktopApp:
     def _show_maze_final_status(self):
         if self.maze_result and self.maze_result.found:
             self.lbl_maze_status.config(text="Status: ✅ Path Found!", fg=DRACULA["green"])
-            self.lbl_maze_cost.config(text=f"Cost: {self.maze_result.path_cost} ({max(0, len(self.maze_path)-1)} steps)")
+            self.lbl_maze_cost.config(text=f"Path: {self.maze_result.path_cost} steps")
             self.lbl_maze_nodes.config(text=f"Explored: {len(self.maze_history)}")
         else:
             self.lbl_maze_status.config(text="Status: ❌ Unsolvable Maze!", fg=DRACULA["red"])
-            self.lbl_maze_cost.config(text="Cost: N/A")
+            self.lbl_maze_cost.config(text="Path: N/A")
 
     def _tick_maze_animation(self):
         if not self.maze_animating or self.maze_paused:
@@ -558,7 +529,7 @@ class MazeDesktopApp:
         self.maze_step = 0
         self.maze_path_step = 0
         self.lbl_maze_status.config(text="Status: Reset", fg=DRACULA["cyan"])
-        self.lbl_maze_cost.config(text="Cost: --")
+        self.lbl_maze_cost.config(text="Path: --")
         self.lbl_maze_nodes.config(text="Step: 0 / 0")
         self.btn_maze_pause.config(text="⏸️ Pause")
         self._redraw_maze()
@@ -580,11 +551,10 @@ class MazeDesktopApp:
             self._show_maze_final_status()
 
     def compare_maze_algorithms(self):
-        maze = GridMaze(grid=self.grid, start=self.start, goal=self.goal, weights=self.weights)
+        maze = GridMaze(grid=self.grid, start=self.start, goal=self.goal)
         metric_key = "manhattan" if "Manhattan" in self.maze_heur_var.get() else "euclidean"
         agents = [
             AStarAgent(name=f"A* ({metric_key.title()})", heuristic_metric=metric_key),
-            BidirectionalAStarAgent(name="Bidir A*", heuristic_metric=metric_key),
             UCSAgent(name="UCS (Dijkstra)"),
             BFSAgent(name="BFS"),
             BidirectionalBFSAgent(name="Bidir BFS"),
@@ -630,12 +600,12 @@ class MazeDesktopApp:
         self.lbl_p_solv.pack(fill=tk.X, pady=(0, 6))
 
         tk.Label(sidebar, text="Heuristic Metric:", font=("Segoe UI", 8, "bold"), bg=DRACULA["current_line"], fg=DRACULA["cyan"]).pack(anchor="w")
-        self.puzzle_heur_var = tk.StringVar(value="Linear Conflict")
-        ttk.Combobox(sidebar, textvariable=self.puzzle_heur_var, values=["Linear Conflict", "Manhattan", "Euclidean", "Misplaced Tiles"], state="readonly").pack(fill=tk.X, pady=(2, 5))
+        self.puzzle_heur_var = tk.StringVar(value="Manhattan")
+        ttk.Combobox(sidebar, textvariable=self.puzzle_heur_var, values=["Manhattan", "Euclidean"], state="readonly").pack(fill=tk.X, pady=(2, 5))
 
         tk.Label(sidebar, text="Search Strategy:", font=("Segoe UI", 8, "bold"), bg=DRACULA["current_line"], fg=DRACULA["cyan"]).pack(anchor="w")
         self.puzzle_algo_var = tk.StringVar(value="A* Search")
-        ttk.Combobox(sidebar, textvariable=self.puzzle_algo_var, values=["A* Search", "Bidirectional A*", "Bidirectional BFS", "UCS (Dijkstra)", "Greedy Best-First", "Breadth-First Search (BFS)", "Depth-First Search (DFS)"], state="readonly").pack(fill=tk.X, pady=(2, 5))
+        ttk.Combobox(sidebar, textvariable=self.puzzle_algo_var, values=["A* Search", "Bidirectional BFS", "UCS (Dijkstra)", "Greedy Best-First", "Breadth-First Search (BFS)", "Depth-First Search (DFS)"], state="readonly").pack(fill=tk.X, pady=(2, 5))
 
         self.puzzle_instant_var = tk.BooleanVar(value=False)
         tk.Checkbutton(sidebar, text="⚡ Instant Solution (Skip Animation)", variable=self.puzzle_instant_var, bg=DRACULA["current_line"], fg=DRACULA["yellow"], selectcolor=DRACULA["dark_wall"], font=("Segoe UI", 8, "bold")).pack(anchor="w", pady=(0, 4))
@@ -724,7 +694,7 @@ class MazeDesktopApp:
             return
 
         dim = self.puzzle_dim
-        board_size = min(w - 60, h - 60, 440)
+        board_size = min(w - 60, h - 60, 460)
         tile_size = board_size // dim
         offset_x = (w - (tile_size * dim)) // 2
         offset_y = (h - (tile_size * dim)) // 2
@@ -761,12 +731,10 @@ class MazeDesktopApp:
         self._cancel_puzzle_timer()
         env = EightPuzzle(start_state=self.puzzle_state, goal_state=self.puzzle_goal)
         h_choice = self.puzzle_heur_var.get()
-        metric_key = "linear_conflict" if "Linear" in h_choice else ("manhattan" if "Manhattan" in h_choice else ("euclidean" if "Euclidean" in h_choice else "misplaced"))
+        metric_key = "euclidean" if "Euclidean" in h_choice else "manhattan"
         algo = self.puzzle_algo_var.get()
 
-        if "Bidirectional A*" in algo:
-            agent = BidirectionalAStarAgent(heuristic_metric=metric_key)
-        elif "Bidirectional BFS" in algo:
+        if "Bidirectional BFS" in algo:
             agent = BidirectionalBFSAgent()
         elif "UCS" in algo:
             agent = UCSAgent()
