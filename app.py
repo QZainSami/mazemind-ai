@@ -115,6 +115,20 @@ st.markdown(
     .stSelectbox, .stRadio, .stSlider {
         margin-bottom: 1px !important;
     }
+    button[data-baseweb="tab"] {
+        background-color: #21222c !important;
+        border: 1px solid #44475a !important;
+        border-radius: 8px 8px 0 0 !important;
+        color: #f8f8f2 !important;
+        font-weight: 600 !important;
+        padding: 6px 14px !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #282a36 !important;
+        border-color: #bd93f9 !important;
+        border-bottom-color: #bd93f9 !important;
+        color: #bd93f9 !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -839,92 +853,303 @@ elif nav_selection == "3. Algorithm Theory & Complexity":
         """
         <div class="header-bar">
             <span class="header-title">Search Algorithm Theory & Complexity</span>
+            <span style="font-size:0.8rem; color:#8be9fd; font-weight:600;">Classical State-Space Search · Heuristics · Solvability Proofs</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown("##### 1. Comparative Complexity Matrix")
-    theory_data = [
-        {
-            "Algorithm": "Breadth-First Search (BFS)",
-            "Type": "Uninformed",
-            "Evaluation": "g(n) = depth(n)",
-            "Time": "O(b^d)",
-            "Space": "O(b^d)",
-            "Optimal?": "Yes (unit cost)",
-        },
-        {
-            "Algorithm": "Depth-First Search (DFS)",
-            "Type": "Uninformed",
-            "Evaluation": "LIFO stack order",
-            "Time": "O(b^m)",
-            "Space": "O(b · m)",
-            "Optimal?": "No",
-        },
-        {
-            "Algorithm": "Uniform Cost Search (UCS)",
-            "Type": "Uninformed",
-            "Evaluation": "g(n) = path cost",
-            "Time": "O(b^(C*/ε))",
-            "Space": "O(b^(C*/ε))",
-            "Optimal?": "Yes",
-        },
-        {
-            "Algorithm": "Greedy Best-First Search",
-            "Type": "Informed",
-            "Evaluation": "f(n) = h(n)",
-            "Time": "O(b^m)",
-            "Space": "O(b^m)",
-            "Optimal?": "No",
-        },
-        {
-            "Algorithm": "A* / Weighted A*",
-            "Type": "Informed",
-            "Evaluation": "f(n) = g(n) + w·h(n)",
-            "Time": "Optimal at w=1",
-            "Space": "O(b^d)",
-            "Optimal?": "Yes when w=1 & h admissible",
-        },
-        {
-            "Algorithm": "Bidirectional BFS",
-            "Type": "Meet-in-the-Middle",
-            "Evaluation": "S→ & ←G concurrently",
-            "Time": "O(b^(d/2))",
-            "Space": "O(b^(d/2))",
-            "Optimal?": "Yes (unit cost)",
-        },
-    ]
-    st.dataframe(pd.DataFrame(theory_data), width="stretch", hide_index=True)
-
-    st.markdown("---")
-    st.markdown("##### 2. Admissible Heuristics & Weighted A*")
-
-    col_h1, col_h2 = st.columns(2)
-    with col_h1:
-        st.markdown(
-            r"""
-            **Manhattan Distance ($L_1$ Norm) & Euclidean ($L_2$ Norm):**
-            $$h_{\text{Manhattan}}(n) = |r_n - r_{\text{goal}}| + |c_n - c_{\text{goal}}|$$
-            $$h_{\text{Euclidean}}(n) = \sqrt{(r_n - r_{\text{goal}})^2 + (c_n - c_{\text{goal}})^2}$$
-            """
-        )
-    with col_h2:
-        st.markdown(
-            r"""
-            **Weighted A\* Tradeoff ($f(n) = g(n) + w \cdot h(n)$):**
-            * At $w = 1.0$, A\* guarantees shortest optimal paths.
-            * Increasing $w > 1.0$ trades strict optimality for faster frontier convergence.
-            """
-        )
-
-    st.markdown("---")
-    st.markdown("##### 3. General $W \\times W$ Sliding Puzzle Solvability Theorem")
-    st.markdown(
-        r"""
-        $$\mathrm{Inv}(S) = \sum_{1 \le i < j < W^2} [S_i > S_j \land S_i \ne 0 \land S_j \ne 0]$$
-        * **Odd Width ($3\times 3$ 8-Puzzle):** $\mathrm{Inv}(S) \equiv \mathrm{Inv}(G) \pmod 2$.
-        * **Even Width ($4\times 4$ 15-Puzzle):** Vertical blank slides shift $\mathrm{Inv}$ parity, so the invariant pairs inversions with the blank tile's row:
-          $$(\mathrm{Inv}(S) + r_{\text{blank}}(S)) \equiv (\mathrm{Inv}(G) + r_{\text{blank}}(G)) \pmod 2$$
+    st.html(
+        """
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:10px;">
+            <div style="background:#21222c; border:1px solid #44475a; border-left:4px solid #bd93f9; border-radius:8px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:#6272a4; text-transform:uppercase; font-weight:700;">Search Strategies</div>
+                <div style="font-size:1.25rem; font-weight:800; color:#f8f8f2; margin:2px 0;">6 Solvers</div>
+                <div style="font-size:0.76rem; color:#bd93f9;">BFS · DFS · UCS · Greedy · A* · Bidir</div>
+            </div>
+            <div style="background:#21222c; border:1px solid #44475a; border-left:4px solid #8be9fd; border-radius:8px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:#6272a4; text-transform:uppercase; font-weight:700;">Admissible Heuristics</div>
+                <div style="font-size:1.25rem; font-weight:800; color:#f8f8f2; margin:2px 0;">L₁ &amp; L₂</div>
+                <div style="font-size:0.76rem; color:#8be9fd;">Manhattan &amp; Euclidean Metrics</div>
+            </div>
+            <div style="background:#21222c; border:1px solid #44475a; border-left:4px solid #50fa7b; border-radius:8px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:#6272a4; text-transform:uppercase; font-weight:700;">Optimal Guarantees</div>
+                <div style="font-size:1.25rem; font-weight:800; color:#f8f8f2; margin:2px 0;">4 Optimal</div>
+                <div style="font-size:0.76rem; color:#50fa7b;">BFS · UCS · A* (w=1) · Bidir BFS</div>
+            </div>
+            <div style="background:#21222c; border:1px solid #44475a; border-left:4px solid #ff79c6; border-radius:8px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:#6272a4; text-transform:uppercase; font-weight:700;">State Guarantees</div>
+                <div style="font-size:1.25rem; font-weight:800; color:#f8f8f2; margin:2px 0;">100% Solvable</div>
+                <div style="font-size:0.76rem; color:#ff79c6;">Carved Mazes &amp; Parity Puzzles</div>
+            </div>
+        </div>
         """
     )
+
+    tab_matrix, tab_heuristics, tab_solvability = st.tabs(
+        [
+            "📊 Complexity Matrix & Algorithm Cards",
+            "🧭 Heuristics & Weighted A*",
+            "🧩 Puzzle Parity & Maze Guarantees",
+        ]
+    )
+
+    with tab_matrix:
+        st.html(
+            """
+            <div style="border:1px solid #44475a; border-radius:10px; background:#21222c; overflow:hidden; margin-bottom:12px;">
+                <div style="padding:8px 14px; background:#282a36; border-bottom:1px solid #44475a; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700; color:#f8f8f2; font-size:0.9rem;">Comparative Asymptotic Complexity</span>
+                    <span style="font-size:0.75rem; color:#6272a4;">b = branching factor · d = optimal depth · m = max depth · C*/ε = min-cost depth</span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.84rem; color:#f8f8f2;">
+                        <thead>
+                            <tr style="background:#262835; color:#8be9fd; text-align:left; font-size:0.75rem; text-transform:uppercase; border-bottom:1px solid #44475a;">
+                                <th style="padding:9px 12px;">Algorithm</th>
+                                <th style="padding:9px 12px;">Category</th>
+                                <th style="padding:9px 12px;">Priority / Frontier</th>
+                                <th style="padding:9px 12px;">Time</th>
+                                <th style="padding:9px 12px;">Space</th>
+                                <th style="padding:9px 12px;">Complete?</th>
+                                <th style="padding:9px 12px;">Optimal?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #343746;">
+                                <td style="padding:9px 12px; font-weight:700; color:#bd93f9;">Breadth-First Search (BFS)</td>
+                                <td style="padding:9px 12px;"><span style="background:#282a36; border:1px solid #8be9fd; color:#8be9fd; padding:2px 8px; border-radius:999px; font-size:0.73rem;">Uninformed</span></td>
+                                <td style="padding:9px 12px; font-family:monospace;">FIFO Queue · g(n) = depth</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#f1fa8c;">O(b<sup>d</sup>)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#f1fa8c;">O(b<sup>d</sup>)</td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span></td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span> <span style="color:#6272a4; font-size:0.76rem;">(unit cost)</span></td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #343746;">
+                                <td style="padding:9px 12px; font-weight:700; color:#ffb86c;">Depth-First Search (DFS)</td>
+                                <td style="padding:9px 12px;"><span style="background:#282a36; border:1px solid #8be9fd; color:#8be9fd; padding:2px 8px; border-radius:999px; font-size:0.73rem;">Uninformed</span></td>
+                                <td style="padding:9px 12px; font-family:monospace;">LIFO Stack · visited set</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#ffb86c;">O(b<sup>m</sup>)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#50fa7b;">O(b · m)</td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span> <span style="color:#6272a4; font-size:0.76rem;">(finite graph)</span></td>
+                                <td style="padding:9px 12px;"><span style="color:#ff5555; font-weight:700;">No</span></td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #343746;">
+                                <td style="padding:9px 12px; font-weight:700; color:#8be9fd;">Uniform Cost Search (UCS)</td>
+                                <td style="padding:9px 12px;"><span style="background:#282a36; border:1px solid #8be9fd; color:#8be9fd; padding:2px 8px; border-radius:999px; font-size:0.73rem;">Uninformed</span></td>
+                                <td style="padding:9px 12px; font-family:monospace;">Min-Heap · f(n) = g(n)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#f1fa8c;">O(b<sup>1 + ⌊C*/ε⌋</sup>)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#f1fa8c;">O(b<sup>1 + ⌊C*/ε⌋</sup>)</td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span></td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span></td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #343746;">
+                                <td style="padding:9px 12px; font-weight:700; color:#ff79c6;">Greedy Best-First Search</td>
+                                <td style="padding:9px 12px;"><span style="background:#282a36; border:1px solid #ff79c6; color:#ff79c6; padding:2px 8px; border-radius:999px; font-size:0.73rem;">Informed</span></td>
+                                <td style="padding:9px 12px; font-family:monospace;">Min-Heap · f(n) = h(n)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#ffb86c;">O(b<sup>m</sup>)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#ffb86c;">O(b<sup>m</sup>)</td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span> <span style="color:#6272a4; font-size:0.76rem;">(graph search)</span></td>
+                                <td style="padding:9px 12px;"><span style="color:#ff5555; font-weight:700;">No</span></td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #343746;">
+                                <td style="padding:9px 12px; font-weight:700; color:#50fa7b;">A* / Weighted A*</td>
+                                <td style="padding:9px 12px;"><span style="background:#282a36; border:1px solid #ff79c6; color:#ff79c6; padding:2px 8px; border-radius:999px; font-size:0.73rem;">Informed</span></td>
+                                <td style="padding:9px 12px; font-family:monospace;">Min-Heap · f(n) = g(n) + w·h(n)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#50fa7b;">Optimally efficient*</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#f1fa8c;">O(b<sup>d</sup>)</td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span></td>
+                                <td style="padding:9px 12px;"><span style="color:#f1fa8c; font-weight:700;">w = 1 &amp; admissible h</span></td>
+                            </tr>
+                            <tr>
+                                <td style="padding:9px 12px; font-weight:700; color:#f1fa8c;">Bidirectional BFS</td>
+                                <td style="padding:9px 12px;"><span style="background:#282a36; border:1px solid #bd93f9; color:#bd93f9; padding:2px 8px; border-radius:999px; font-size:0.73rem;">Meet-in-Middle</span></td>
+                                <td style="padding:9px 12px; font-family:monospace;">Dual FIFO Queues (S→ &amp; ←G)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#50fa7b;">O(b<sup>d/2</sup>)</td>
+                                <td style="padding:9px 12px; font-family:monospace; color:#50fa7b;">O(b<sup>d/2</sup>)</td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span></td>
+                                <td style="padding:9px 12px;"><span style="color:#50fa7b; font-weight:700;">Yes</span> <span style="color:#6272a4; font-size:0.76rem;">(unit cost)</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px;">
+                <div style="background:#21222c; border:1px solid #44475a; border-top:3px solid #bd93f9; border-radius:8px; padding:11px 13px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:800; color:#bd93f9; font-size:0.9rem;">BFS</span>
+                        <span style="font-size:0.72rem; color:#8be9fd; font-family:monospace;">FIFO Queue</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#f8f8f2; line-height:1.45;">Expands states strictly level-by-level in waves. Always finds the shortest path on unweighted grids and sliding puzzles, at the cost of storing the full frontier.</div>
+                </div>
+                <div style="background:#21222c; border:1px solid #44475a; border-top:3px solid #ffb86c; border-radius:8px; padding:11px 13px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:800; color:#ffb86c; font-size:0.9rem;">DFS</span>
+                        <span style="font-size:0.72rem; color:#8be9fd; font-family:monospace;">LIFO Stack</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#f8f8f2; line-height:1.45;">Plunges deeply along one branch before backtracking. Uses minimal linear stack memory O(b·m), but paths often wind far longer than optimal.</div>
+                </div>
+                <div style="background:#21222c; border:1px solid #44475a; border-top:3px solid #8be9fd; border-radius:8px; padding:11px 13px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:800; color:#8be9fd; font-size:0.9rem;">Uniform Cost (UCS)</span>
+                        <span style="font-size:0.72rem; color:#8be9fd; font-family:monospace;">Min-Heap g(n)</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#f8f8f2; line-height:1.45;">Dijkstra's algorithm generalized to state-space graphs. Expands lowest cumulative cost g(n) first without any goal heuristic (h = 0).</div>
+                </div>
+                <div style="background:#21222c; border:1px solid #44475a; border-top:3px solid #ff79c6; border-radius:8px; padding:11px 13px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:800; color:#ff79c6; font-size:0.9rem;">Greedy Best-First</span>
+                        <span style="font-size:0.72rem; color:#8be9fd; font-family:monospace;">Min-Heap h(n)</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#f8f8f2; line-height:1.45;">Rushes straight toward the goal estimate h(n) ignoring g(n). Very fast in open space, but easily lured into dead-end U-traps and suboptimal detours.</div>
+                </div>
+                <div style="background:#21222c; border:1px solid #44475a; border-top:3px solid #50fa7b; border-radius:8px; padding:11px 13px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:800; color:#50fa7b; font-size:0.9rem;">A* &amp; Weighted A*</span>
+                        <span style="font-size:0.72rem; color:#8be9fd; font-family:monospace;">g(n) + w·h(n)</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#f8f8f2; line-height:1.45;">Balances exact past cost g(n) with admissible future estimate h(n). Optimal at w=1; raising w &gt; 1 focuses the beam to trade optimality for speed.</div>
+                </div>
+                <div style="background:#21222c; border:1px solid #44475a; border-top:3px solid #f1fa8c; border-radius:8px; padding:11px 13px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-weight:800; color:#f1fa8c; font-size:0.9rem;">Bidirectional BFS</span>
+                        <span style="font-size:0.72rem; color:#8be9fd; font-family:monospace;">S→ &amp; ←G Waves</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#f8f8f2; line-height:1.45;">Runs two concurrent BFS frontiers from Start and Goal until they collide, cutting search volume from b<sup>d</sup> down to 2·b<sup>d/2</sup>.</div>
+                </div>
+            </div>
+            """
+        )
+
+    with tab_heuristics:
+        col_h1, col_h2 = st.columns(2)
+        with col_h1:
+            with st.container(border=True):
+                st.markdown("##### 📐 Admissible Distance Heuristics")
+                st.latex(r"h_{\text{Manhattan}}(n) = |r_n - r_{\text{goal}}| + |c_n - c_{\text{goal}}|")
+                st.latex(r"h_{\text{Euclidean}}(n) = \sqrt{(r_n - r_{\text{goal}})^2 + (c_n - c_{\text{goal}})^2}")
+                st.markdown(
+                    r"""
+                    * **Admissibility ($h(n) \le h^*(n)$):** Never overestimates true remaining cost, preserving A\*'s shortest-path guarantee at $w = 1$.
+                    * **Dominance ($L_2 \le L_1 \le h^*$):** On 4-way grids and sliding puzzles, **Manhattan ($L_1$)** equals the exact obstacle-free distance and is tighter than Euclidean ($L_2$), pruning more dead branches.
+                    """
+                )
+        with col_h2:
+            with st.container(border=True):
+                st.markdown(r"##### ⚖️ Weighted A\* Tradeoff Spectrum")
+                st.latex(r"f(n) = g(n) + w \cdot h(n), \quad w \in [1.0, 3.0]")
+                st.html(
+                    """
+                    <div style="display:flex; flex-direction:column; gap:7px; margin:6px 0 8px 0; font-size:0.81rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#21222c; padding:6px 10px; border-radius:6px; border-left:3px solid #8be9fd;">
+                            <span><b>w = 0</b> · Pure Uniform Cost</span>
+                            <span style="color:#8be9fd;">Optimal · Broadest wave</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#21222c; padding:6px 10px; border-radius:6px; border-left:3px solid #50fa7b;">
+                            <span><b>w = 1.0</b> · Standard A*</span>
+                            <span style="color:#50fa7b;">Optimal · Minimum optimal nodes</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#21222c; padding:6px 10px; border-radius:6px; border-left:3px solid #ff79c6;">
+                            <span><b>w &gt; 1.0</b> · Weighted A*</span>
+                            <span style="color:#ff79c6;">Cost ≤ w·C* · Faster convergence</span>
+                        </div>
+                    </div>
+                    """
+                )
+
+        with st.container(border=True):
+            st.markdown("##### ⚡ Exponential Savings: Unidirectional `O(b^d)` vs. Bidirectional `O(2·b^(d/2))`")
+            c_b, c_d = st.columns(2)
+            with c_b:
+                sim_b = st.slider("Branching Factor (b):", min_value=2, max_value=4, value=3, key="theory_sim_b")
+            with c_d:
+                sim_d = st.slider("Solution Depth (d):", min_value=4, max_value=18, value=12, step=2, key="theory_sim_d")
+
+            uni_nodes = sim_b ** sim_d
+            bi_nodes = 2 * (sim_b ** (sim_d // 2))
+            speedup = uni_nodes / bi_nodes
+            bi_pct = max(2.0, min(100.0, (bi_nodes / uni_nodes) * 100.0))
+
+            st.html(
+                f"""
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:4px; margin-bottom:6px;">
+                    <div style="background:#21222c; border:1px solid #44475a; border-radius:8px; padding:8px 12px;">
+                        <div style="font-size:0.74rem; color:#bd93f9; font-weight:700;">BFS / Standard Wave (b<sup>d</sup>)</div>
+                        <div style="font-size:1.15rem; font-weight:800; color:#f8f8f2; font-family:monospace;">{uni_nodes:,} states</div>
+                    </div>
+                    <div style="background:#21222c; border:1px solid #44475a; border-radius:8px; padding:8px 12px;">
+                        <div style="font-size:0.74rem; color:#50fa7b; font-weight:700;">Bidirectional BFS (2·b<sup>d/2</sup>)</div>
+                        <div style="font-size:1.15rem; font-weight:800; color:#50fa7b; font-family:monospace;">{bi_nodes:,} states</div>
+                    </div>
+                    <div style="background:#21222c; border:1px solid #44475a; border-radius:8px; padding:8px 12px;">
+                        <div style="font-size:0.74rem; color:#f1fa8c; font-weight:700;">Theoretical Pruning Factor</div>
+                        <div style="font-size:1.15rem; font-weight:800; color:#f1fa8c; font-family:monospace;">{speedup:,.1f}× fewer</div>
+                    </div>
+                </div>
+                <div style="background:#21222c; border:1px solid #44475a; border-radius:6px; padding:8px 12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6272a4; margin-bottom:4px;">
+                        <span>Relative State-Space Footprint</span>
+                        <span>Bidirectional = {bi_pct:.3f}% of Unidirectional</span>
+                    </div>
+                    <div style="height:10px; background:#44475a; border-radius:999px; overflow:hidden; margin-bottom:4px;">
+                        <div style="width:100%; height:100%; background:#bd93f9;"></div>
+                    </div>
+                    <div style="height:10px; background:#44475a; border-radius:999px; overflow:hidden;">
+                        <div style="width:{bi_pct:.2f}%; height:100%; background:#50fa7b;"></div>
+                    </div>
+                </div>
+                """
+            )
+
+    with tab_solvability:
+        col_s1, col_s2 = st.columns([1.15, 0.85])
+        with col_s1:
+            with st.container(border=True):
+                st.markdown("##### 🔢 General $W \\times W$ Sliding Puzzle Solvability Theorem")
+                st.latex(r"\mathrm{Inv}(S) = \sum_{0 \le i < j < W^2} [\,S_i > S_j \land S_i \ne 0 \land S_j \ne 0\,]")
+                st.markdown(
+                    r"""
+                    * **Odd Width ($3\times 3$ 8-Puzzle):** Horizontal moves keep $\mathrm{Inv}(S)$ unchanged and vertical moves shift a tile past $W - 1 = 2$ neighbors (even), so parity never changes:
+                      $$\mathrm{Inv}(S) \equiv \mathrm{Inv}(G) \pmod 2$$
+                    * **Even Width ($4\times 4$ 15-Puzzle):** Vertical blank moves skip $W - 1 = 3$ tiles (odd), flipping both $\mathrm{Inv}(S)$ and $r_{\text{blank}}$ parity together so their sum stays invariant:
+                      $$\bigl(\mathrm{Inv}(S) + r_{\text{blank}}(S)\bigr) \equiv \bigl(\mathrm{Inv}(G) + r_{\text{blank}}(G)\bigr) \pmod 2$$
+                    """
+                )
+                st.html(
+                    """
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px;">
+                        <div style="background:#21222c; border:1px solid #50fa7b; border-radius:8px; padding:8px 10px;">
+                            <div style="font-size:0.78rem; font-weight:700; color:#50fa7b; margin-bottom:4px;">✅ Solvable (Inv = 2, Even)</div>
+                            <div style="font-family:monospace; font-size:0.8rem; color:#f8f8f2;">1 2 3 &nbsp;|&nbsp; 4 · <span style="color:#50fa7b; font-weight:700;">6</span> &nbsp;|&nbsp; <span style="color:#50fa7b; font-weight:700;">7 5</span> 8</div>
+                            <div style="font-size:0.73rem; color:#6272a4; margin-top:3px;">Two inversions (6 &gt; 5, 7 &gt; 5) preserve even parity.</div>
+                        </div>
+                        <div style="background:#21222c; border:1px solid #ff5555; border-radius:8px; padding:8px 10px;">
+                            <div style="font-size:0.78rem; font-weight:700; color:#ff5555; margin-bottom:4px;">❌ Unsolvable (Inv = 1, Odd)</div>
+                            <div style="font-family:monospace; font-size:0.8rem; color:#f8f8f2;"><span style="color:#ff5555; font-weight:700;">2 1</span> 3 &nbsp;|&nbsp; 4 5 6 &nbsp;|&nbsp; 7 8 ·</div>
+                            <div style="font-size:0.73rem; color:#6272a4; margin-top:3px;">Single transposition (2 &gt; 1) flips parity forever.</div>
+                        </div>
+                    </div>
+                    """
+                )
+        with col_s2:
+            with st.container(border=True):
+                st.markdown("##### 🗺️ Guaranteed-Solvable Maze Architecture")
+                st.html(
+                    """
+                    <div style="display:flex; flex-direction:column; gap:8px; font-size:0.82rem; color:#f8f8f2;">
+                        <div style="background:#21222c; border:1px solid #44475a; border-left:3px solid #bd93f9; border-radius:6px; padding:8px 10px;">
+                            <div style="font-weight:700; color:#bd93f9;">1. Spanning-Tree Labyrinths</div>
+                            <div style="color:#f8f8f2; margin-top:2px;"><b>Recursive Backtracker</b> &amp; <b>Prim's Perfect Maze</b> carve connected odd-coordinate corridors with zero isolated rooms.</div>
+                        </div>
+                        <div style="background:#21222c; border:1px solid #44475a; border-left:3px solid #8be9fd; border-radius:6px; padding:8px 10px;">
+                            <div style="font-weight:700; color:#8be9fd;">2. High-Density Verification</div>
+                            <div style="color:#f8f8f2; margin-top:2px;">Random obstacle grids (up to <b>35×35</b> at <b>0.50</b> density) are immediately tested with a fast BFS reachability pass.</div>
+                        </div>
+                        <div style="background:#21222c; border:1px solid #44475a; border-left:3px solid #50fa7b; border-radius:6px; padding:8px 10px;">
+                            <div style="font-weight:700; color:#50fa7b;">3. Shortest-Carve Fallback</div>
+                            <div style="color:#f8f8f2; margin-top:2px;">If blocked, MazeMind AI runs a randomized 0-1 minimum-wall pathfinder and opens the minimal bottleneck walls needed to guarantee Start → Goal connectivity.</div>
+                        </div>
+                    </div>
+                    """
+                )
